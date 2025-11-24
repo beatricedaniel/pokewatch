@@ -1,0 +1,12 @@
+api:
+  base_url: "https://www.pokemonpricetracker.com/api/v2"
+  timeout_seconds: 10
+  language: "japanese"    # IMPORTANT: JP cards only
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+
+model:
+  default_buy_threshold_pct: 0.10   # -10% (undervalued)
+  default_sell_threshold_pct: 0.15  # +15% (overpriced)

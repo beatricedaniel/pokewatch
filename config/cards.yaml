@@ -1,0 +1,134 @@
+set:
+  id: 69039c463cf9e889df7dca2c
+  name: 'SV2a: Pokemon Card 151'
+  language: japanese
+cards:
+- internal_id: sv2a_151_charizard_ex___201_165
+  name: Charizard ex - 201/165
+  card_number: 201/165
+  tcgplayer_id: '566544'
+  card_id: 6903a3ff1a46ee4e9cc9bd32
+  category: grail
+  tags:
+  - ex
+  - fire
+  - special-art-rare
+  monitoring:
+    active: true
+    priority: 3
+- internal_id: sv2a_151_mew_ex___205_165
+  name: Mew ex - 205/165
+  card_number: 205/165
+  tcgplayer_id: '577147'
+  card_id: 6903a4151a46ee4e9cc9c1d2
+  category: grail
+  tags:
+  - ex
+  - legendary
+  - psychic
+  - special-art-rare
+  monitoring:
+    active: true
+    priority: 3
+- internal_id: sv2a_151_blastoise_ex___202_165
+  name: Blastoise ex - 202/165
+  card_number: 202/165
+  tcgplayer_id: '566545'
+  card_id: 6903a3fd1a46ee4e9cc9bccd
+  category: grail
+  tags:
+  - ex
+  - water
+  - special-art-rare
+  monitoring:
+    active: true
+    priority: 3
+- internal_id: sv2a_151_venusaur_ex___200_165
+  name: Venusaur ex - 200/165
+  card_number: 200/165
+  tcgplayer_id: '566543'
+  card_id: 6903a4271a46ee4e9cc9c59b
+  category: grail
+  tags:
+  - ex
+  - grass
+  - special-art-rare
+  monitoring:
+    active: true
+    priority: 3
+- internal_id: sv2a_151_zapdos_ex___204_165
+  name: Zapdos ex - 204/165
+  card_number: 204/165
+  tcgplayer_id: '566547'
+  card_id: 6903a42b1a46ee4e9cc9c639
+  category: grail
+  tags:
+  - ex
+  - electric
+  - legendary
+  - special-art-rare
+  monitoring:
+    active: true
+    priority: 3
+- internal_id: sv2a_151_dragonite_master_ball_pattern
+  name: Dragonite (Master Ball Pattern)
+  card_number: 149/165
+  tcgplayer_id: '566843'
+  card_id: 6903a4041a46ee4e9cc9be32
+  category: chase
+  tags:
+  - master-ball
+  - rare
+  monitoring:
+    active: true
+    priority: 2
+- internal_id: sv2a_151_alakazam_ex___203_165
+  name: Alakazam ex - 203/165
+  card_number: 203/165
+  tcgplayer_id: '566546'
+  card_id: 6903a3fa1a46ee4e9cc9bc2b
+  category: chase
+  tags:
+  - ex
+  - special-art-rare
+  monitoring:
+    active: true
+    priority: 2
+- internal_id: sv2a_151_magikarp_master_ball_pattern
+  name: Magikarp (Master Ball Pattern)
+  card_number: 129/165
+  tcgplayer_id: '566824'
+  card_id: 6903a4131a46ee4e9cc9c159
+  category: chase
+  tags:
+  - master-ball
+  - common
+  monitoring:
+    active: true
+    priority: 2
+- internal_id: sv2a_151_mewtwo_master_ball_pattern
+  name: Mewtwo (Master Ball Pattern)
+  card_number: 150/165
+  tcgplayer_id: '566844'
+  card_id: 6903a4161a46ee4e9cc9c1dc
+  category: chase
+  tags:
+  - master-ball
+  - rare
+  - psychic
+  - legendary
+  monitoring:
+    active: true
+    priority: 2
+- internal_id: sv2a_151_gyarados_master_ball_pattern
+  name: Gyarados (Master Ball Pattern)
+  card_number: 130/165
+  tcgplayer_id: '566825'
+  card_id: 6903a40c1a46ee4e9cc9bfeb
+  category: chase
+  tags:
+  - master-ball
+  - rare
+  monitoring:
+    active: true
+    priority: 2

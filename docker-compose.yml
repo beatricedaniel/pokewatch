@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # API service
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: pokewatch-api
+    ports:
+      - "8000:8000"
+    environment:
+      - POKEMON_PRICE_API_KEY=${POKEMON_PRICE_API_KEY:-}
+      - ENV=${ENV:-prod}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONPATH=/app/src
+    volumes:
+      - ./logs:/app/logs
+      - ./data/processed:/app/data/processed:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Test service
+  tests:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: pokewatch-tests
+    environment:
+      - POKEMON_PRICE_API_KEY=${POKEMON_PRICE_API_KEY:-}
+      - ENV=test
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONPATH=/app/src
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Running unit tests...' &&
+        python -m pytest tests/unit -v --tb=short &&
+        echo 'Running integration tests...' &&
+        python -m pytest tests/integration -v --tb=short
+      "
+    depends_on:
+      - api
+    profiles:
+      - test
+
