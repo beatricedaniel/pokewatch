@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/beatrice/Documents/data_scientest/projet/mlruns/745156630466227320/f7ad32902181452ca0e31e0193eae58a/artifacts
+end_time: 1764452664339
+entry_point_name: ''
+experiment_id: '745156630466227320'
+lifecycle_stage: active
+run_id: f7ad32902181452ca0e31e0193eae58a
+run_name: able-rook-130
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764452663093
+status: 3
+tags: []
+user_id: beatrice

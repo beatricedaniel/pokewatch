@@ -1,20 +1,181 @@
-2025-11-24 20:12:54 - pokewatch.api.main - INFO - Logging configured. Log file: /Users/beatrice/Documents/data_scientest/projet/pokewatch/logs/logs.txt
-2025-11-24 20:12:54 - pokewatch.api.main - INFO - Starting PokeWatch API...
-2025-11-24 20:12:54 - pokewatch.api.main - INFO - Loading baseline model...
-2025-11-24 20:12:54 - pokewatch.models.baseline - INFO - Loading baseline model from: /Users/beatrice/Documents/data_scientest/projet/pokewatch/data/processed/sv2a_pokemon_card_151.parquet
-2025-11-24 20:12:54 - pokewatch.models.baseline - INFO - Initialized BaselineFairPriceModel with 10 cards, date range: 2025-11-24 to 2025-11-24
-2025-11-24 20:12:54 - pokewatch.api.main - INFO - ✓ Model loaded with 10 cards. Decision thresholds: BUY <= -10.0%, SELL >= +15.0%
-2025-11-24 20:14:21 - pokewatch.api.main - INFO - Shutting down PokeWatch API...
-2025-11-24 20:14:22 - pokewatch.api.main - INFO - Logging configured. Log file: /Users/beatrice/Documents/data_scientest/projet/pokewatch/logs/logs.txt
-2025-11-24 20:14:22 - pokewatch.api.main - INFO - Starting PokeWatch API...
-2025-11-24 20:14:22 - pokewatch.api.main - INFO - Loading baseline model...
-2025-11-24 20:14:22 - pokewatch.models.baseline - INFO - Loading baseline model from: /Users/beatrice/Documents/data_scientest/projet/pokewatch/data/processed/sv2a_pokemon_card_151.parquet
-2025-11-24 20:14:22 - pokewatch.models.baseline - INFO - Initialized BaselineFairPriceModel with 10 cards, date range: 2025-11-24 to 2025-11-24
-2025-11-24 20:14:22 - pokewatch.api.main - INFO - ✓ Model loaded with 10 cards. Decision thresholds: BUY <= -10.0%, SELL >= +15.0%
-2025-11-24 20:53:21 - pokewatch.api.main - INFO - Logging configured. Log file: /app/logs/logs.txt
-2025-11-24 20:53:21 - pokewatch.api.main - INFO - Starting PokeWatch API...
-2025-11-24 20:53:21 - pokewatch.api.main - INFO - Loading baseline model...
-2025-11-24 20:53:21 - pokewatch.models.baseline - INFO - Loading baseline model from: /app/data/processed/sv2a_pokemon_card_151.parquet
-2025-11-24 20:53:21 - pokewatch.models.baseline - INFO - Initialized BaselineFairPriceModel with 10 cards, date range: 2025-11-24 to 2025-11-24
-2025-11-24 20:53:21 - pokewatch.api.main - INFO - ✓ Model loaded with 10 cards. Decision thresholds: BUY <= -10.0%, SELL >= +15.0%
-2025-11-24 21:05:30 - pokewatch.api.main - INFO - Shutting down PokeWatch API...
+time="2025-11-29T17:51:12+01:00" level=warning msg="/Users/beatrice/Documents/data_scientest/projet/pokewatch/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container pokewatch-api  Running
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.05kB done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from api.Dockerfile
+#2 transferring dockerfile: 981B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.13-slim
+#3 DONE 0.2s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 476B done
+#4 DONE 0.0s
+
+#5 [ 1/11] FROM docker.io/library/python:3.13-slim@sha256:326df678c20c78d465db501563f3492d17c42a4afe33a1f2bf5406a1d56b0e86
+#5 resolve docker.io/library/python:3.13-slim@sha256:326df678c20c78d465db501563f3492d17c42a4afe33a1f2bf5406a1d56b0e86 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 4.26kB done
+#6 DONE 0.0s
+
+#7 [ 9/11] RUN mkdir -p /app/data/processed
+#7 CACHED
+
+#8 [10/11] COPY data/processed/ ./data/processed/
+#8 CACHED
+
+#9 [ 8/11] COPY config ./config
+#9 CACHED
+
+#10 [ 3/11] RUN apt-get update && apt-get install -y     gcc     curl     && rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [ 2/11] WORKDIR /app
+#11 CACHED
+
+#12 [ 7/11] COPY src ./src
+#12 CACHED
+
+#13 [ 4/11] RUN pip install --no-cache-dir --upgrade pip
+#13 CACHED
+
+#14 [ 5/11] COPY requirements.txt .
+#14 CACHED
+
+#15 [ 6/11] RUN pip install --no-cache-dir -r requirements.txt
+#15 CACHED
+
+#16 [11/11] RUN mkdir -p /app/logs
+#16 CACHED
+
+#17 exporting to image
+#17 exporting layers done
+#17 exporting manifest sha256:3620a6e719c83674a193bcad751c31eccd38bfd52ea7ae936a10e2b509401446 done
+#17 exporting config sha256:12849d8f0224f41cf36f9353b580a5288c95f4ddf70ec0d8bc7d0f8d7d12564f done
+#17 exporting attestation manifest sha256:2bb4290abfdefc012292cf72435606ce9017d769869fd1bc5bc82f6152fe23c1 done
+#17 exporting manifest list sha256:0f73adbf253e699eb69db4da997f7dc13d18d012d1ac778c75faaa422907022b done
+#17 naming to docker.io/library/pokewatch-tests:latest done
+#17 unpacking to docker.io/library/pokewatch-tests:latest done
+#17 DONE 0.0s
+
+#18 resolving provenance for metadata file
+#18 DONE 0.0s
+Running unit tests...
+============================= test session starts ==============================
+platform linux -- Python 3.13.9, pytest-9.0.1, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pyproject.toml
+plugins: mock-3.15.1, anyio-4.11.0
+collecting ... collected 63 items
+
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_init_with_valid_data PASSED [  1%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_init_missing_columns PASSED [  3%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_predict_with_specific_date PASSED [  4%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_predict_with_none_date_uses_latest PASSED [  6%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_predict_unknown_card_id PASSED [  7%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_predict_date_not_found PASSED [  9%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_get_latest_date PASSED [ 11%]
+tests/unit/test_baseline.py::TestBaselineFairPriceModel::test_get_all_card_ids PASSED [ 12%]
+tests/unit/test_decision_rules.py::TestDecisionConfig::test_default_values PASSED [ 14%]
+tests/unit/test_decision_rules.py::TestDecisionConfig::test_custom_values PASSED [ 15%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_buy_signal_negative_deviation PASSED [ 17%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_buy_signal_below_threshold PASSED [ 19%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_sell_signal_positive_deviation PASSED [ 20%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_sell_signal_above_threshold PASSED [ 22%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_hold_signal_small_negative_deviation PASSED [ 23%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_hold_signal_small_positive_deviation PASSED [ 25%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_hold_signal_equal_prices PASSED [ 26%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_buy_signal_at_exact_threshold PASSED [ 28%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_sell_signal_at_exact_threshold PASSED [ 30%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_hold_signal_between_thresholds PASSED [ 31%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_error_on_zero_fair_price PASSED [ 33%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_error_on_negative_fair_price PASSED [ 34%]
+tests/unit/test_decision_rules.py::TestComputeSignal::test_custom_thresholds PASSED [ 36%]
+tests/unit/test_make_features.py::TestBuildFeatures::test_build_features_basic PASSED [ 38%]
+tests/unit/test_make_features.py::TestBuildFeatures::test_build_features_fair_value_fallback PASSED [ 39%]
+tests/unit/test_make_features.py::TestBuildFeatures::test_build_features_rolling_mean_5 PASSED [ 41%]
+tests/unit/test_make_features.py::TestBuildFeatures::test_build_features_multiple_cards_independent PASSED [ 42%]
+tests/unit/test_make_features.py::TestEnsureConsistentSchema::test_ensure_consistent_schema_date_conversion PASSED [ 44%]
+tests/unit/test_make_features.py::TestEnsureConsistentSchema::test_ensure_consistent_schema_sorting PASSED [ 46%]
+tests/unit/test_price_tracker_client.py::TestClientInitialization::test_client_initialization PASSED [ 47%]
+tests/unit/test_price_tracker_client.py::TestClientInitialization::test_base_url_trailing_slash_removed PASSED [ 49%]
+tests/unit/test_price_tracker_client.py::TestClientInitialization::test_authorization_header_set PASSED [ 50%]
+tests/unit/test_price_tracker_client.py::TestClientInitialization::test_default_headers PASSED [ 52%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_successful_request PASSED [ 53%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_none_params_filtered PASSED [ 55%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_401_raises_auth_error PASSED [ 57%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_404_raises_not_found_error PASSED [ 58%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_429_raises_rate_limit_error PASSED [ 60%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_500_raises_generic_error PASSED [ 61%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_timeout_raises_error PASSED [ 63%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_invalid_json_raises_error PASSED [ 65%]
+tests/unit/test_price_tracker_client.py::TestMakeRequest::test_request_exception_raises_error PASSED [ 66%]
+tests/unit/test_price_tracker_client.py::TestGetSets::test_get_sets_basic PASSED [ 68%]
+tests/unit/test_price_tracker_client.py::TestGetSets::test_get_sets_with_search PASSED [ 69%]
+tests/unit/test_price_tracker_client.py::TestGetSets::test_get_sets_with_all_params PASSED [ 71%]
+tests/unit/test_price_tracker_client.py::TestGetSets::test_get_sets_uses_default_language PASSED [ 73%]
+tests/unit/test_price_tracker_client.py::TestGetCardsInSet::test_get_cards_in_set_basic PASSED [ 74%]
+tests/unit/test_price_tracker_client.py::TestGetCardsInSet::test_get_cards_in_set_with_history PASSED [ 76%]
+tests/unit/test_price_tracker_client.py::TestGetCardsInSet::test_get_cards_in_set_without_history PASSED [ 77%]
+tests/unit/test_price_tracker_client.py::TestGetCardsInSet::test_get_cards_in_set_with_limit PASSED [ 79%]
+tests/unit/test_price_tracker_client.py::TestGetCardsInSet::test_get_cards_in_set_custom_language PASSED [ 80%]
+tests/unit/test_price_tracker_client.py::TestGetSingleCardWithHistory::test_get_card_by_tcgplayer_id PASSED [ 82%]
+tests/unit/test_price_tracker_client.py::TestGetSingleCardWithHistory::test_get_card_by_card_number_and_set PASSED [ 84%]
+tests/unit/test_price_tracker_client.py::TestGetSingleCardWithHistory::test_get_card_missing_params_raises_error PASSED [ 85%]
+tests/unit/test_price_tracker_client.py::TestGetSingleCardWithHistory::test_get_card_partial_params_raises_error PASSED [ 87%]
+tests/unit/test_price_tracker_client.py::TestGetSingleCardWithHistory::test_get_card_custom_language PASSED [ 88%]
+tests/unit/test_price_tracker_client.py::TestSearchCards::test_search_cards_basic PASSED [ 90%]
+tests/unit/test_price_tracker_client.py::TestSearchCards::test_search_cards_with_filters PASSED [ 92%]
+tests/unit/test_price_tracker_client.py::TestContextManager::test_context_manager_closes_session PASSED [ 93%]
+tests/unit/test_price_tracker_client.py::TestContextManager::test_close_method PASSED [ 95%]
+tests/unit/test_price_tracker_client.py::TestEdgeCases::test_empty_response PASSED [ 96%]
+tests/unit/test_price_tracker_client.py::TestEdgeCases::test_large_days_parameter PASSED [ 98%]
+tests/unit/test_price_tracker_client.py::TestEdgeCases::test_special_characters_in_search PASSED [100%]
+
+=============================== warnings summary ===============================
+src/pokewatch/config/settings.py:51
+  /app/src/pokewatch/config/settings.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Settings(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 63 passed, 1 warning in 0.28s =========================
+Running integration tests...
+============================= test session starts ==============================
+platform linux -- Python 3.13.9, pytest-9.0.1, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pyproject.toml
+plugins: mock-3.15.1, anyio-4.11.0
+collecting ... collected 8 items
+
+tests/integration/test_api_baseline.py::TestHealthEndpoint::test_health_check PASSED [ 12%]
+tests/integration/test_api_baseline.py::TestFairPriceEndpoint::test_fair_price_with_known_card_id PASSED [ 25%]
+tests/integration/test_api_baseline.py::TestFairPriceEndpoint::test_fair_price_with_specific_date PASSED [ 37%]
+tests/integration/test_api_baseline.py::TestFairPriceEndpoint::test_fair_price_unknown_card_id PASSED [ 50%]
+tests/integration/test_api_baseline.py::TestFairPriceEndpoint::test_fair_price_date_not_found PASSED [ 62%]
+tests/integration/test_api_baseline.py::TestFairPriceEndpoint::test_fair_price_response_structure PASSED [ 75%]
+tests/integration/test_api_baseline.py::TestFairPriceEndpoint::test_fair_price_signal_logic PASSED [ 87%]
+tests/integration/test_api_baseline.py::TestListCardsEndpoint::test_list_cards PASSED [100%]
+
+=============================== warnings summary ===============================
+src/pokewatch/config/settings.py:51
+  /app/src/pokewatch/config/settings.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Settings(BaseModel):
+
+src/pokewatch/api/schemas.py:13
+  /app/src/pokewatch/api/schemas.py:13: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class FairPriceRequest(BaseModel):
+
+src/pokewatch/api/schemas.py:31
+  /app/src/pokewatch/api/schemas.py:31: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class FairPriceResponse(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 8 passed, 3 warnings in 0.30s =========================
+2025-11-29 16:55:05 - pokewatch.api.main - INFO - Shutting down PokeWatch API...

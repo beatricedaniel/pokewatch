@@ -52,3 +52,95 @@ services:
     profiles:
       - test
 
+  # MinIO for MLflow artifact storage
+  minio:
+    image: minio/minio:latest
+    container_name: pokewatch-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - ./minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Create MinIO bucket for MLflow
+  minio-setup:
+    image: minio/mc:latest
+    container_name: pokewatch-minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb myminio/mlflow-artifacts --ignore-existing;
+      mc anonymous set public myminio/mlflow-artifacts;
+      exit 0;
+      "
+
+  # MLflow Tracking Server
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.1
+    container_name: pokewatch-mlflow
+    ports:
+      - "5001:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=s3://mlflow-artifacts/
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+    volumes:
+      - ./mlflow_data:/mlflow
+    command: >
+      sh -c "pip install boto3 &&
+             mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root s3://mlflow-artifacts/"
+    depends_on:
+      - minio
+      - minio-setup
+    restart: unless-stopped
+
+  # Training service for baseline model
+  training:
+    build:
+      context: .
+      dockerfile: docker/training.Dockerfile
+    container_name: pokewatch-training
+    environment:
+      - POKEMON_PRICE_API_KEY=${POKEMON_PRICE_API_KEY:-}
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - PYTHONPATH=/app/src
+      - ENV=training
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Source code (read-only for consistency)
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      # Data
+      - ./data/processed:/app/data/processed:ro
+      - ./data/raw:/app/data/raw:ro
+      - ./data/interim:/app/data/interim:ro
+      # Model outputs
+      - ./models:/app/models
+      # MLflow artifacts (shared with mlflow service)
+      - ./mlruns:/app/mlruns
+      - ./mlruns_artifacts:/app/mlruns_artifacts
+      # Logs
+      - ./logs:/app/logs
+    depends_on:
+      - mlflow
+    profiles:
+      - training
+

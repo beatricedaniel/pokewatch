@@ -1,0 +1,15 @@
+
+Baseline Model Evaluation Summary
+=================================
+Model Type: Moving Average (window=3)
+Dataset Size: 20 samples
+Coverage Rate: 100.00%
+
+Metrics:
+- RMSE: 0.20
+- MAPE: 0.06%
+
+Signal Distribution:
+- BUY: 0.00%
+- SELL: 0.00%
+- HOLD: 100.00%

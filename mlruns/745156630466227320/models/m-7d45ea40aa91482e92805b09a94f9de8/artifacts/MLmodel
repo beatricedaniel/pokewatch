@@ -1,0 +1,33 @@
+artifact_path: file:///Users/beatrice/Documents/data_scientest/projet/mlruns/745156630466227320/models/m-7d45ea40aa91482e92805b09a94f9de8/artifacts
+flavors:
+  python_function:
+    cloudpickle_version: 3.1.2
+    code: null
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pyfunc.model
+    python_model: python_model.pkl
+    python_version: 3.13.7
+    streamable: false
+is_signature_from_type_hint: false
+mlflow_version: 3.6.0
+model_id: m-7d45ea40aa91482e92805b09a94f9de8
+model_size_bytes: 7897
+model_uuid: m-7d45ea40aa91482e92805b09a94f9de8
+prompts: null
+run_id: b3deafb2db3b4e28839ea4ccf17ccc9a
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "string", "name": "card_id", "required": true}, {"type": "string",
+    "name": "date", "required": true}]'
+  outputs: '[{"type": "datetime", "name": "resolved_date", "required": true}, {"type":
+    "double", "name": "market_price", "required": true}, {"type": "double", "name":
+    "fair_price", "required": true}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2025-11-29 21:47:33.613738'

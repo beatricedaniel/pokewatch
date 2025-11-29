@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/beatrice/Documents/data_scientest/projet/mlruns/745156630466227320/f63e55af945f420fb85f00d769337512/artifacts
+end_time: 1764451873021
+entry_point_name: ''
+experiment_id: '745156630466227320'
+lifecycle_stage: active
+run_id: f63e55af945f420fb85f00d769337512
+run_name: upset-shrimp-762
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764451871608
+status: 3
+tags: []
+user_id: beatrice

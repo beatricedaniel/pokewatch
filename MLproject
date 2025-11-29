@@ -1,0 +1,16 @@
+name: pokewatch_baseline
+
+entry_points:
+  train:
+    parameters:
+      data_path:
+        type: str
+        default: "data/processed/sv2a_pokemon_card_151.parquet"
+      experiment_name:
+        type: str
+        default: "pokewatch_baseline"
+      run_name:
+        type: str
+        default: "baseline_run"
+    command: "python -m pokewatch.models.train_baseline --data_path {data_path} --experiment_name {experiment_name} --run_name {run_name}"
+

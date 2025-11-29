@@ -1,0 +1,10 @@
+artifact_location: file:///Users/beatrice/Documents/data_scientest/projet/mlruns/745156630466227320/models/m-7d45ea40aa91482e92805b09a94f9de8/artifacts
+creation_timestamp: 1764452853607
+experiment_id: '745156630466227320'
+last_updated_timestamp: 1764452854648
+model_id: m-7d45ea40aa91482e92805b09a94f9de8
+model_type: null
+name: baseline_model
+source_run_id: b3deafb2db3b4e28839ea4ccf17ccc9a
+status: 2
+status_message: null

@@ -24,4 +24,6 @@ dependencies = [
     "pytest",
     "pytest-mock",
     "httpx",
+    "mlflow",
+    "matplotlib",
 ]
