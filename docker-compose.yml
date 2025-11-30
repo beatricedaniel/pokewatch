@@ -52,6 +52,12 @@ services:
     profiles:
       - test
 
+  # ========================================
+  # LOCAL MLFLOW STACK (Optional - for local development only)
+  # For production, use DagsHub MLflow (see training service config)
+  # To use local stack: docker-compose --profile mlflow up
+  # ========================================
+
   # MinIO for MLflow artifact storage
   minio:
     image: minio/minio:latest
@@ -71,6 +77,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    profiles:
+      - mlflow
 
   # Create MinIO bucket for MLflow
   minio-setup:
@@ -86,6 +94,8 @@ services:
       mc anonymous set public myminio/mlflow-artifacts;
       exit 0;
       "
+    profiles:
+      - mlflow
 
   # MLflow Tracking Server
   mlflow:
@@ -108,6 +118,33 @@ services:
       - minio
       - minio-setup
     restart: unless-stopped
+    profiles:
+      - mlflow
+
+  # ========================================
+  # DATA COLLECTION & TRAINING SERVICES
+  # ========================================
+
+  # Collector service for data collection
+  collector:
+    build:
+      context: .
+      dockerfile: docker/collector.Dockerfile
+    container_name: pokewatch-collector
+    environment:
+      - POKEMON_PRICE_API_KEY=${POKEMON_PRICE_API_KEY:-}
+      - PYTHONPATH=/app/src
+      - ENV=${ENV:-prod}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Configuration (read-only)
+      - ./config:/app/config:ro
+      # Data output (write)
+      - ./data/raw:/app/data/raw
+      # Logs
+      - ./logs:/app/logs
+    profiles:
+      - collector
 
   # Training service for baseline model
   training:
@@ -117,10 +154,10 @@ services:
     container_name: pokewatch-training
     environment:
       - POKEMON_PRICE_API_KEY=${POKEMON_PRICE_API_KEY:-}
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      # DagsHub MLflow Tracking (replaces local MLflow)
+      - MLFLOW_TRACKING_URI=https://dagshub.com/beatricedaniel/pokewatch.mlflow
+      - MLFLOW_TRACKING_USERNAME=beatricedaniel
+      - MLFLOW_TRACKING_PASSWORD=${DAGSHUB_TOKEN}
       - PYTHONPATH=/app/src
       - ENV=training
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -132,15 +169,10 @@ services:
       - ./data/processed:/app/data/processed:ro
       - ./data/raw:/app/data/raw:ro
       - ./data/interim:/app/data/interim:ro
-      # Model outputs
+      # Model outputs (DVC-tracked)
       - ./models:/app/models
-      # MLflow artifacts (shared with mlflow service)
-      - ./mlruns:/app/mlruns
-      - ./mlruns_artifacts:/app/mlruns_artifacts
       # Logs
       - ./logs:/app/logs
-    depends_on:
-      - mlflow
     profiles:
       - training
 

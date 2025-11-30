@@ -33,15 +33,15 @@ stages:
       - src/pokewatch/data/preprocessing/make_features.py
     params:
       - config/settings.yaml:
-          - data.raw_data_dir
-          - data.processed_data_dir
+          - data.raw_dir
+          - data.processed_dir
     outs:
       - data/processed/sv2a_pokemon_card_151.parquet:
           cache: true
 
   # Stage 3: Model Training
   # Trains baseline model in Docker container and logs to MLflow
-  # Note: Metrics are logged to MLflow, not stored as DVC metrics
+  # Metrics are logged to DagsHub MLflow, models versioned with DVC
   train:
     cmd: docker-compose run --rm training python -m pokewatch.models.train_baseline
     deps:
@@ -54,3 +54,7 @@ stages:
       - config/settings.yaml:
           - model.default_buy_threshold_pct
           - model.default_sell_threshold_pct
+    outs:
+      - models/baseline:
+          cache: true
+          desc: "Baseline model artifacts (pickle files, metadata)"

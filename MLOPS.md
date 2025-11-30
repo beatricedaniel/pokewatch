@@ -8,13 +8,74 @@ PokeWatch implements a complete MLOps stack for managing the machine learning li
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Data Versioning** | DVC + DagsHub | Track and version datasets |
-| **Experiment Tracking** | MLflow (Docker) | Log metrics, parameters, and artifacts |
-| **Artifact Storage** | MinIO (S3-compatible) | Store MLflow artifacts (plots, models) |
-| **Pipeline Orchestration** | DVC Pipelines | Reproducible ML workflows |
-| **Model Registry** | MLflow Registry | Manage model versions and stages |
-| **Containerization** | Docker + docker-compose | Isolated execution environments |
-| **Version Control** | Git + GitHub | Code and pipeline versioning |
+| **Data Versioning** | DVC + DagsHub | Track and version datasets and models |
+| **Experiment Tracking** | DagsHub MLflow | Cloud-hosted experiment tracking and metrics |
+| **Artifact Storage** | DagsHub Storage | Store MLflow artifacts (plots, models, summaries) |
+| **Pipeline Orchestration** | DVC Pipelines + Makefile | Reproducible ML workflows with standardized commands |
+| **Model Versioning** | DVC + MLflow | Version models with DVC, track with MLflow |
+| **Microservices** | Docker + docker-compose | Isolated collector, API, and training services |
+| **Version Control** | Git + DagsHub | Code, pipeline, and metadata versioning |
+
+**Note:** A local MLflow stack (MLflow + MinIO) is available for offline development via `docker-compose --profile mlflow up`, but production uses DagsHub's cloud MLflow.
+
+---
+
+## Quick Start Guide
+
+### Prerequisites
+1. **DagsHub Account**: Create account at https://dagshub.com
+2. **API Keys**:
+   - Pokémon Price Tracker API key
+   - DagsHub token (from https://dagshub.com/user/settings/tokens)
+3. **Environment**: Copy `.env.example` to `.env` and fill in credentials
+
+### Initial Setup
+```bash
+# Clone repository
+git clone https://dagshub.com/beatricedaniel/pokewatch.git
+cd pokewatch
+
+# Setup environment and dependencies
+make setup
+
+# Configure credentials in .env
+cp .env.example .env
+vim .env  # Add POKEMON_PRICE_API_KEY and DAGSHUB_TOKEN
+
+# Pull latest data from DagsHub
+make dvc-pull
+```
+
+### Common Workflows
+
+**Collect fresh data:**
+```bash
+make collect        # Run collector microservice
+make dvc-push       # Upload to DagsHub
+```
+
+**Train model:**
+```bash
+make train          # Train with DagsHub MLflow tracking
+```
+
+**Run full pipeline:**
+```bash
+make pipeline       # Collect → Preprocess → Train
+make dvc-push       # Upload data/models to DagsHub
+```
+
+**Start API server:**
+```bash
+make api            # Start prediction API on port 8000
+```
+
+**View experiments:**
+- Experiments: https://dagshub.com/beatricedaniel/pokewatch/experiments
+- Data: https://dagshub.com/beatricedaniel/pokewatch/data
+
+### Available Commands
+Run `make help` to see all available commands.
 
 ---
 
@@ -180,25 +241,38 @@ stages:
 
 ### Architecture
 
+PokeWatch uses **DagsHub MLflow** for experiment tracking in production. All experiments, metrics, and artifacts are logged to DagsHub's cloud platform.
+
 ```
-Docker Container (training)
+Training Container
        │
-       ├─→ MLflow Server (port 5001)
+       ├─→ DagsHub MLflow (Cloud)
        │        │
-       │        ├─→ SQLite (metrics/params)
-       │        └─→ MinIO (artifacts: plots, models)
+       │        ├─→ PostgreSQL (metrics/params)
+       │        └─→ DagsHub Storage (artifacts: plots, summaries)
        │
-       └─→ Artifacts logged via HTTP
+       └─→ HTTPS API (authenticated)
 ```
+
+**Configuration:**
+- **Tracking URI**: `https://dagshub.com/beatricedaniel/pokewatch.mlflow`
+- **Authentication**: Via `DAGSHUB_TOKEN` environment variable
+- **Web UI**: https://dagshub.com/beatricedaniel/pokewatch/experiments
 
 ### Running Experiments
 
-**Docker-based training (recommended):**
+**Using Makefile (recommended):**
 ```bash
-# Using helper script
-./scripts/train_baseline_docker.sh
+# Train model with DagsHub MLflow tracking
+make train
 
-# Or directly
+# Run full pipeline (collect → preprocess → train)
+make pipeline
+```
+
+**Using Docker Compose:**
+```bash
+# Direct docker-compose command
 docker-compose run --rm training python -m pokewatch.models.train_baseline
 
 # With custom parameters
@@ -208,8 +282,30 @@ docker-compose run --rm training python -m pokewatch.models.train_baseline \
 ```
 
 **View results:**
-- **MLflow UI**: http://127.0.0.1:5001
-- **MinIO Console**: http://127.0.0.1:9001 (login: minioadmin/minioadmin)
+- **DagsHub Experiments**: https://dagshub.com/beatricedaniel/pokewatch/experiments
+- **MLflow UI**: https://dagshub.com/beatricedaniel/pokewatch.mlflow
+
+### Local MLflow Stack (Optional)
+
+For offline development, a local MLflow stack is available:
+
+```bash
+# Start local MLflow + MinIO
+make mlflow-local
+# OR: docker-compose --profile mlflow up
+
+# Update .env to use local tracking
+# Uncomment these lines in .env:
+# MLFLOW_TRACKING_URI=http://localhost:5001
+# AWS_ACCESS_KEY_ID=minioadmin
+# AWS_SECRET_ACCESS_KEY=minioadmin
+# MLFLOW_S3_ENDPOINT_URL=http://localhost:9000
+
+# View local MLflow UI
+open http://127.0.0.1:5001
+```
+
+**Note:** Local experiments won't sync to DagsHub. For production, always use DagsHub MLflow.
 
 ### What Gets Logged
 
@@ -246,29 +342,86 @@ open http://127.0.0.1:5001
 
 ---
 
-## Integration: Git + DVC + MLflow
+## Microservices Architecture
 
-### Complete Workflow
+PokeWatch uses Docker microservices for isolated, scalable components:
 
-**1. Modify code/config**
+### Services
+
+**1. Collector Service** (`pokewatch-collector`)
+- **Purpose**: Fetch daily card prices from Pokémon Price Tracker API
+- **Trigger**: Scheduled (cron/manual) or via `make collect`
+- **Output**: Raw JSON/Parquet files in `data/raw/`
+- **Dockerfile**: `docker/collector.Dockerfile`
+
 ```bash
-# Edit threshold in config/settings.yaml
-vim config/settings.yaml
+# Run collector
+make collect
+# OR: docker-compose run --rm collector
 ```
 
-**2. Collect new data (optional)**
+**2. Training Service** (`pokewatch-training`)
+- **Purpose**: Train baseline model and log to DagsHub MLflow
+- **Trigger**: Manual via `make train` or `dvc repro train`
+- **Output**: Model artifacts in `models/baseline/`, experiments on DagsHub
+- **Dockerfile**: `docker/training.Dockerfile`
+
 ```bash
-dvc repro collect
+# Run training
+make train
+# OR: docker-compose run --rm training
 ```
 
-**3. Re-run pipeline**
+**3. API Service** (`pokewatch-api`)
+- **Purpose**: Serve predictions via REST API
+- **Trigger**: Long-running service
+- **Port**: 8000
+- **Dockerfile**: `docker/api.Dockerfile`
+
 ```bash
-dvc repro
+# Start API
+make api
+# OR: docker-compose up api
 ```
 
-**4. Push data to DagsHub**
+### Benefits
+
+- **Isolation**: Each service has its own environment and dependencies
+- **Scalability**: Services can be scaled independently (e.g., multiple collectors)
+- **Reproducibility**: Dockerfile ensures consistent execution
+- **Deployment**: Easy migration to Kubernetes (Phase 3)
+
+---
+
+## Integration: Git + DVC + MLflow + Makefile
+
+### Complete Workflow with Makefile
+
+**1. Collect new data**
 ```bash
-dvc push
+# Run collector microservice
+make collect
+
+# Check DVC status
+make dvc-status
+```
+
+**2. Run full pipeline**
+```bash
+# Collect → Preprocess → Train
+make pipeline
+```
+
+**3. Push data and models to DagsHub**
+```bash
+# Push DVC-tracked data/models
+make dvc-push
+```
+
+**4. View experiments**
+```bash
+# Open DagsHub experiments page
+open https://dagshub.com/beatricedaniel/pokewatch/experiments
 ```
 
 **5. Commit changes**

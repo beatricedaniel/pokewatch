@@ -72,9 +72,15 @@ stages:
       size: 6330
     - path: src/pokewatch/models/train_baseline.py
       hash: md5
-      md5: 15fa839e49e743c422c03a869b2d4d35
-      size: 16586
+      md5: 0a5292f5d610a6a8688ce6fa72965016
+      size: 18326
     params:
       config/settings.yaml:
         model.default_buy_threshold_pct: 0.1
         model.default_sell_threshold_pct: 0.15
+    outs:
+    - path: models/baseline
+      hash: md5
+      md5: 583c284b1cb34d45b145bba75b9acea6.dir
+      size: 10885
+      nfiles: 2

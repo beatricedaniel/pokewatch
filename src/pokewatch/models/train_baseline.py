@@ -413,7 +413,45 @@ Signal Distribution:
             summary_path = artifacts_dir / "evaluation_summary.txt"
             summary_path.write_text(summary)
             mlflow.log_artifact(str(summary_path), artifact_path="summary")
-            
+
+            # Save model artifacts to DVC-tracked directory
+            # For baseline model, we save the processed features + metadata
+            logger.info("Saving model artifacts for DVC versioning...")
+            models_dir = project_root / "models" / "baseline"
+            models_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save processed features (model data source)
+            import shutil
+            shutil.copy2(data_path, models_dir / f"{data_path.name}")
+            logger.info(f"Copied features to: {models_dir / data_path.name}")
+
+            # Save model metadata with timestamp
+            from datetime import datetime
+            metadata = {
+                "model_type": "baseline_moving_average",
+                "window_size": 3,
+                "trained_at": datetime.now().isoformat(),
+                "mlflow_run_id": run.info.run_id,
+                "mlflow_experiment_id": experiment.experiment_id,
+                "dataset_path": str(data_path),
+                "dataset_size": metrics_dict["dataset_size"],
+                "metrics": {
+                    "rmse": float(metrics_dict["rmse"]),
+                    "mape": float(metrics_dict["mape"]),
+                    "coverage_rate": float(metrics_dict["coverage_rate"]),
+                },
+                "thresholds": {
+                    "buy_threshold_pct": decision_cfg.buy_threshold_pct,
+                    "sell_threshold_pct": decision_cfg.sell_threshold_pct,
+                },
+            }
+
+            import json
+            metadata_path = models_dir / "model_metadata.json"
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f, indent=2)
+            logger.info(f"Saved metadata to: {metadata_path}")
+
             logger.info("Evaluation complete!")
             logger.info(f"View results at: {tracking_uri}/#/experiments/{experiment.experiment_id}/runs/{run.info.run_id}")
         
