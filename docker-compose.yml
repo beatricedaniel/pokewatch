@@ -146,6 +146,37 @@ services:
     profiles:
       - collector
 
+  # BentoML API service (Phase 3 - Production ML Serving)
+  bento-api:
+    build:
+      context: .
+      dockerfile: docker/bento.Dockerfile
+    container_name: pokewatch-bento-api
+    ports:
+      - "3000:3000"
+    environment:
+      - POKEMON_PRICE_API_KEY=${POKEMON_PRICE_API_KEY:-}
+      - DAGSHUB_TOKEN=${DAGSHUB_TOKEN}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-https://dagshub.com/beatricedaniel/pokewatch.mlflow}
+      - PYTHONPATH=/app
+      - ENV=${ENV:-prod}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Data (read-only)
+      - ./data/processed:/app/data/processed:ro
+      - ./models/baseline:/app/models/baseline:ro
+      # Logs
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - bento
+
   # Training service for baseline model
   training:
     build:

@@ -209,3 +209,36 @@ mlflow-local:  ## Start local MLflow server (for development only)
 
 mlflow-local-stop:  ## Stop local MLflow server
 	docker-compose --profile mlflow down
+
+# ========================================
+# BENTOML SERVING (PHASE 3)
+# ========================================
+
+bento-build:  ## Build BentoML service
+	@echo "Building BentoML service..."
+	./scripts/build_bento.sh
+
+bento-serve:  ## Serve BentoML locally with hot-reload
+	@echo "Starting BentoML service..."
+	@echo "Access at: http://localhost:3000"
+	uv run bentoml serve pokewatch.serving.service:PokeWatchService --reload
+
+bento-containerize:  ## Build BentoML Docker image
+	@echo "Containerizing BentoML service..."
+	uv run bentoml containerize pokewatch_service:latest -t pokewatch-bento:latest
+
+bento-api:  ## Start BentoML API in Docker
+	@echo "Starting BentoML API (port 3000)..."
+	docker-compose up bento-api
+
+# ========================================
+# ML PIPELINE (PHASE 3)
+# ========================================
+
+pipeline-run:  ## Run complete ML pipeline (collect → preprocess → train → deploy)
+	@echo "Running ML pipeline..."
+	PYTHONPATH=. python pipelines/ml_pipeline.py
+
+pipeline-simple:  ## Run pipeline using existing make commands
+	@echo "Running simple pipeline..."
+	make collect && make preprocess && make train && make bento-build

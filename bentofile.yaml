@@ -1,0 +1,30 @@
+service: "pokewatch.serving.service:PokeWatchService"
+name: pokewatch_service
+description: "PokeWatch card price prediction service with BentoML"
+labels:
+  owner: beatricedaniel
+  project: pokewatch
+  stage: development
+  version: "0.1.0"
+
+include:
+  - "src/"
+  - "config/"
+  - "data/processed/"  # Include processed data for model loading
+  - "models/baseline/"  # Include model artifacts
+
+python:
+  packages:
+    - pandas>=2.0.0
+    - numpy>=1.24.0
+    - pyarrow>=12.0.0
+    - pydantic>=2.0.0
+    - pyyaml>=6.0.0
+    - python-dotenv>=1.0.0
+  lock_packages: false  # Set to true for production reproducibility
+
+docker:
+  python_version: "3.13"
+  system_packages:
+    - git
+    - curl
