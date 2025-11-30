@@ -1,1 +1,47 @@
+# Environment variables
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.venv/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# DVC
+/data/raw/*
+/data/processed/*
+/data/interim/*
+/data/synthetic/*
+!*.dvc
+.dvc/config.local
+.dvc/tmp
+.dvc/cache
+
+# MLflow
+/mlruns/
+/mlflow.db
+/mlflow_data/
+/minio_data/
+/mlruns_artifacts/
+
+# Logs
+/logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+.dockerignore

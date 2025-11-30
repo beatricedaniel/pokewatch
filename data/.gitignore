@@ -1,0 +1,3 @@
+# Ignore actual data files, keep only DVC pointers
+/interim
+/synthetic

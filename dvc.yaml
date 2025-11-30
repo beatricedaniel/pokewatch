@@ -1,0 +1,56 @@
+# DVC Pipeline for PokeWatch
+#
+# This pipeline defines a reproducible ML workflow with 3 stages:
+# 1. collect: Fetch daily card prices from Pokemon Price Tracker API
+# 2. preprocess: Transform raw data into features for modeling
+# 3. train: Train baseline model and log experiments to MLflow
+#
+# Run the entire pipeline: dvc repro
+# Run specific stage: dvc repro <stage_name>
+# Visualize pipeline: dvc dag
+
+stages:
+  # Stage 1: Data Collection
+  # Fetches latest card prices from Pokemon Price Tracker API
+  collect:
+    cmd: python -m pokewatch.data.collectors.daily_price_collector
+    deps:
+      - config/cards.yaml
+      - config/settings.yaml
+      - src/pokewatch/data/collectors/daily_price_collector.py
+      - src/pokewatch/data/price_tracker_client.py
+    outs:
+      - data/raw:
+          cache: true
+
+  # Stage 2: Feature Engineering
+  # Transforms raw price history into processed features
+  preprocess:
+    cmd: python -m pokewatch.data.preprocessing.make_features
+    deps:
+      - data/raw
+      - config/settings.yaml
+      - src/pokewatch/data/preprocessing/make_features.py
+    params:
+      - config/settings.yaml:
+          - data.raw_data_dir
+          - data.processed_data_dir
+    outs:
+      - data/processed/sv2a_pokemon_card_151.parquet:
+          cache: true
+
+  # Stage 3: Model Training
+  # Trains baseline model in Docker container and logs to MLflow
+  # Note: Metrics are logged to MLflow, not stored as DVC metrics
+  train:
+    cmd: docker-compose run --rm training python -m pokewatch.models.train_baseline
+    deps:
+      - data/processed/sv2a_pokemon_card_151.parquet
+      - config/settings.yaml
+      - src/pokewatch/models/train_baseline.py
+      - src/pokewatch/models/baseline.py
+      - src/pokewatch/core/decision_rules.py
+    params:
+      - config/settings.yaml:
+          - model.default_buy_threshold_pct
+          - model.default_sell_threshold_pct
