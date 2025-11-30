@@ -1,0 +1,80 @@
+schema: '2.0'
+stages:
+  collect:
+    cmd: python -m pokewatch.data.collectors.daily_price_collector
+    deps:
+    - path: config/cards.yaml
+      hash: md5
+      md5: 0831fb8b6099dc9082b09bf251b94074
+      size: 2857
+    - path: config/settings.yaml
+      hash: md5
+      md5: c9b9c13bf20f86cc5e4be300e122fd9b
+      size: 321
+    - path: src/pokewatch/data/collectors/daily_price_collector.py
+      hash: md5
+      md5: c66396da514aca090c75fbd383ea199c
+      size: 16207
+    - path: src/pokewatch/data/price_tracker_client.py
+      hash: md5
+      md5: 2542f8224d0d91032883ee518e9f7c8a
+      size: 11925
+    outs:
+    - path: data/raw
+      hash: md5
+      md5: 80db84719ba029f458fbca56f92b74a3.dir
+      size: 7409
+      nfiles: 1
+  preprocess:
+    cmd: python -m pokewatch.data.preprocessing.make_features
+    deps:
+    - path: config/settings.yaml
+      hash: md5
+      md5: c9b9c13bf20f86cc5e4be300e122fd9b
+      size: 321
+    - path: data/raw
+      hash: md5
+      md5: 80db84719ba029f458fbca56f92b74a3.dir
+      size: 7409
+      nfiles: 1
+    - path: src/pokewatch/data/preprocessing/make_features.py
+      hash: md5
+      md5: 57f479ae164eb107f7481cea3241e838
+      size: 7891
+    params:
+      config/settings.yaml:
+        data.processed_dir: data/processed
+        data.raw_dir: data/raw
+    outs:
+    - path: data/processed/sv2a_pokemon_card_151.parquet
+      hash: md5
+      md5: 87307db2437681bf438274834add1ddf
+      size: 10432
+  train:
+    cmd: docker-compose run --rm training python -m 
+      pokewatch.models.train_baseline
+    deps:
+    - path: config/settings.yaml
+      hash: md5
+      md5: c9b9c13bf20f86cc5e4be300e122fd9b
+      size: 321
+    - path: data/processed/sv2a_pokemon_card_151.parquet
+      hash: md5
+      md5: 87307db2437681bf438274834add1ddf
+      size: 10432
+    - path: src/pokewatch/core/decision_rules.py
+      hash: md5
+      md5: 6a9c5d00b7f8c507e8d43e27bd4bc920
+      size: 1950
+    - path: src/pokewatch/models/baseline.py
+      hash: md5
+      md5: e7c0dde880da4710dfa73cfa5bdee204
+      size: 6330
+    - path: src/pokewatch/models/train_baseline.py
+      hash: md5
+      md5: 15fa839e49e743c422c03a869b2d4d35
+      size: 16586
+    params:
+      config/settings.yaml:
+        model.default_buy_threshold_pct: 0.1
+        model.default_sell_threshold_pct: 0.15
