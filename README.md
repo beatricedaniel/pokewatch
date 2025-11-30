@@ -104,6 +104,70 @@ These KPIs are more about the “platform health” than pure model performance:
 Together, these metrics make PokeWatch look and behave like a small but realistic MLOps production system, while keeping the actual implementation lightweight and focused.
 
 
+## MLOps Setup
+
+### Data Versioning (DVC)
+
+PokeWatch uses DVC (Data Version Control) with DagsHub for data versioning and pipeline orchestration.
+
+#### First-time Setup
+```bash
+# Clone repository
+git clone git@github.com:beatricedaniel/pokewatch.git
+cd pokewatch
+
+# Pull versioned data from DagsHub
+dvc pull
+```
+
+#### Reproduce Pipeline
+```bash
+# Run entire pipeline: collect → preprocess → train
+dvc repro
+
+# Run specific stage
+dvc repro train
+
+# Visualize pipeline
+dvc dag
+```
+
+#### Update Data
+```bash
+# After collecting new data
+dvc add data/raw
+dvc push
+git add data/raw.dvc dvc.lock
+git commit -m "data: Update raw data with new prices"
+git push
+```
+
+### Experiment Tracking (MLflow)
+
+MLflow runs in Docker with MinIO for artifact storage.
+
+#### Start Services
+```bash
+# Start MLflow and MinIO
+docker-compose up -d minio mlflow
+```
+
+#### Run Training
+```bash
+# Using helper script
+./scripts/train_baseline_docker.sh
+
+# Or directly
+docker-compose run --rm training python -m pokewatch.models.train_baseline
+```
+
+#### View Results
+- **MLflow UI**: http://127.0.0.1:5001
+- **MinIO Console**: http://127.0.0.1:9001 (minioadmin/minioadmin)
+
+For detailed MLOps workflows, see [MLOPS.md](MLOPS.md).
+
+
 ## Project structure 
 
 ```

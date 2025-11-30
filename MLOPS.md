@@ -1,215 +1,449 @@
-# MLOps Documentation - MLflow Tracking
-
-This document explains how to use MLflow for experiment tracking in the PokeWatch project.
+# MLOps Documentation - PokeWatch
 
 ## Overview
 
-MLflow is used to track:
-- Model parameters (model type, thresholds, etc.)
-- Evaluation metrics (RMSE, MAPE, coverage rate, signal distribution)
-- Model artifacts (serialized models, visualizations, summaries)
-- Experiment runs for comparison
+PokeWatch implements a complete MLOps stack for managing the machine learning lifecycle, from data versioning to model deployment and monitoring.
 
-## Setup
+### Technology Stack
 
-### 1. Install Dependencies
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Data Versioning** | DVC + DagsHub | Track and version datasets |
+| **Experiment Tracking** | MLflow (Docker) | Log metrics, parameters, and artifacts |
+| **Artifact Storage** | MinIO (S3-compatible) | Store MLflow artifacts (plots, models) |
+| **Pipeline Orchestration** | DVC Pipelines | Reproducible ML workflows |
+| **Model Registry** | MLflow Registry | Manage model versions and stages |
+| **Containerization** | Docker + docker-compose | Isolated execution environments |
+| **Version Control** | Git + GitHub | Code and pipeline versioning |
 
-Using `uv` (recommended):
-```bash
-uv sync
+---
+
+## Data Versioning with DVC
+
+### Architecture
+
+```
+DagsHub (Remote Storage)
+         ↑
+         │ dvc push/pull
+         ↓
+   Local DVC Cache
+         ↑
+         │
+    .dvc files (Git)
 ```
 
-Or manually:
+### Initial Setup
+
+**First-time clone:**
 ```bash
-uv pip install mlflow matplotlib
+# Clone repository
+git clone git@github.com:beatricedaniel/pokewatch.git
+cd pokewatch
+
+# Pull versioned data from DagsHub
+dvc pull
 ```
 
-### 2. Configure MLflow Tracking URI
+This downloads all data files referenced by `.dvc` metadata files.
 
-**For Local Development (Recommended)**:
-- Don't set `MLFLOW_TRACKING_URI` in `.env`, or comment it out
-- The script will automatically use local file tracking (`file://./mlruns`)
-- This avoids artifact storage issues when running locally
+### Working with Data
 
-**For Remote Server**:
-- Set `MLFLOW_TRACKING_URI=http://localhost:5001` in `.env`
-- **Note**: Remote server requires proper artifact storage (S3/MinIO) for artifacts to work correctly
-- For local development, local file tracking is simpler and recommended
-
-### 3. Start MLflow Server
-
-Start the MLflow tracking server using Docker Compose:
+#### Viewing Data Status
 ```bash
-docker-compose up mlflow
+# Check if data is up-to-date
+dvc status
+
+# List all DVC-tracked files
+dvc list . data/raw
+dvc list . data/processed
 ```
 
-Or start it directly:
+#### Updating Data
 ```bash
-docker-compose up -d mlflow
+# After collecting new data
+python -m pokewatch.data.collectors.daily_price_collector
+
+# DVC will automatically detect changes in pipeline outputs
+dvc status
+
+# Re-run pipeline to update downstream stages
+dvc repro
 ```
 
-The MLflow UI will be available at: http://localhost:5001
+#### Versioning Data Changes
+```bash
+# Push updated data to DagsHub
+dvc push
 
-## Usage
+# Commit the pipeline changes
+git add dvc.lock
+git commit -m "data: Update with latest card prices"
+git push origin main
+```
+
+### Data Lineage
+
+DVC tracks which data version was used to train which model:
+
+```bash
+# View data dependencies for a specific stage
+dvc dag
+
+# Show metrics from a specific pipeline run
+dvc metrics show
+```
+
+---
+
+## Pipeline Management
+
+### Pipeline Overview
+
+PokeWatch uses a 3-stage pipeline:
+
+```
+┌─────────┐
+│ collect │  ← Fetch daily prices from API
+└────┬────┘
+     │
+     ↓
+┌────────────┐
+│ preprocess │  ← Transform raw data → features
+└─────┬──────┘
+      │
+      ↓
+┌───────┐
+│ train │  ← Train model in Docker + log to MLflow
+└───────┘
+```
+
+### Running the Pipeline
+
+**Full pipeline reproduction:**
+```bash
+# Run all stages (collect → preprocess → train)
+dvc repro
+
+# Force re-run even if nothing changed
+dvc repro --force
+```
+
+**Run specific stage:**
+```bash
+# Run only training (if data hasn't changed)
+dvc repro train
+
+# Run only data collection
+dvc repro collect
+```
+
+### Pipeline Configuration
+
+The pipeline is defined in `dvc.yaml`:
+
+```yaml
+stages:
+  collect:
+    cmd: python -m pokewatch.data.collectors.daily_price_collector
+    deps: [config/cards.yaml, config/settings.yaml, ...]
+    outs: [data/raw]
+
+  preprocess:
+    cmd: python -m pokewatch.data.preprocessing.make_features
+    deps: [data/raw, ...]
+    outs: [data/processed/sv2a_pokemon_card_151.parquet]
+    params:
+      - config/settings.yaml:
+          - data.raw_data_dir
+          - data.processed_data_dir
+
+  train:
+    cmd: docker-compose run --rm training python -m pokewatch.models.train_baseline
+    deps: [data/processed/sv2a_pokemon_card_151.parquet, ...]
+    params:
+      - config/settings.yaml:
+          - model.default_buy_threshold_pct
+          - model.default_sell_threshold_pct
+```
+
+### Pipeline Benefits
+
+✅ **Reproducibility**: Anyone can reproduce results with `dvc repro`
+✅ **Caching**: DVC only re-runs stages when dependencies change
+✅ **Versioning**: Pipeline definition versioned in Git
+✅ **Lineage**: Track which data → which model
+
+---
+
+## Experiment Tracking with MLflow
+
+### Architecture
+
+```
+Docker Container (training)
+       │
+       ├─→ MLflow Server (port 5001)
+       │        │
+       │        ├─→ SQLite (metrics/params)
+       │        └─→ MinIO (artifacts: plots, models)
+       │
+       └─→ Artifacts logged via HTTP
+```
 
 ### Running Experiments
 
-#### Method 1: Direct Script Execution
-
-Run the training/evaluation script directly:
+**Docker-based training (recommended):**
 ```bash
-# Using uv
-uv run python -m pokewatch.models.train_baseline
+# Using helper script
+./scripts/train_baseline_docker.sh
 
-# Or with Python (if environment is activated)
-python -m pokewatch.models.train_baseline
+# Or directly
+docker-compose run --rm training python -m pokewatch.models.train_baseline
+
+# With custom parameters
+docker-compose run --rm training python -m pokewatch.models.train_baseline \
+  --experiment_name my_experiment \
+  --run_name my_run
 ```
 
-With custom parameters:
-```bash
-uv run python -m pokewatch.models.train_baseline \
-    --data_path data/processed/sv2a_pokemon_card_151.parquet \
-    --experiment_name pokewatch_baseline \
-    --run_name my_custom_run
-```
+**View results:**
+- **MLflow UI**: http://127.0.0.1:5001
+- **MinIO Console**: http://127.0.0.1:9001 (login: minioadmin/minioadmin)
 
-#### Method 2: MLflow Projects
+### What Gets Logged
 
-Run using MLflow Projects for better reproducibility:
-```bash
-mlflow run . -e train --env-manager local
-```
+Each training run logs:
 
-With custom parameters:
-```bash
-mlflow run . -e train \
-    -P data_path=data/processed/sv2a_pokemon_card_151.parquet \
-    -P experiment_name=pokewatch_baseline \
-    -P run_name=mlflow_project_run \
-    --env-manager local
-```
+**Parameters:**
+- `model_type`: baseline_moving_average
+- `window_size`: 3
+- `buy_threshold_pct`: -10.0
+- `sell_threshold_pct`: 15.0
 
-### Viewing Results
-
-1. **Access the MLflow UI**: Open http://localhost:5001 in your browser
-
-2. **Navigate to Experiments**:
-   - Select the "pokewatch_baseline" experiment
-   - View all runs in the experiment
-
-3. **Compare Runs**:
-   - Select multiple runs
-   - Compare metrics, parameters, and artifacts side-by-side
-
-4. **View Run Details**:
-   - Click on a specific run
-   - View logged metrics, parameters, and artifacts
-   - Download model artifacts and visualizations
-
-### Logged Information
-
-Each run logs:
-
-**Parameters**:
-- `model_type`: "baseline_moving_average"
-- `window_size`: 3 (rolling window size)
-- `buy_threshold_pct`: Buy threshold percentage
-- `sell_threshold_pct`: Sell threshold percentage
-
-**Metrics**:
-- `rmse`: Root Mean Squared Error
-- `mape`: Mean Absolute Percentage Error (%)
-- `dataset_size`: Number of samples evaluated
+**Metrics:**
+- `rmse`: Root Mean Square Error
+- `mape`: Mean Absolute Percentage Error
+- `dataset_size`: Number of samples
 - `coverage_rate`: Percentage of valid predictions
-- `buy_rate`: Percentage of BUY signals
-- `sell_rate`: Percentage of SELL signals
-- `hold_rate`: Percentage of HOLD signals
+- `buy_rate`, `sell_rate`, `hold_rate`: Signal distribution
 
-**Artifacts**:
-- `baseline_model/`: Serialized model (MLflow format)
-- `plots/error_distribution.png`: Histogram of prediction errors
-- `plots/scatter_true_vs_predicted.png`: Scatter plot of true vs predicted prices
-- `plots/signal_distribution.png`: Pie chart of signal distribution
-- `summary/evaluation_summary.txt`: Text summary of evaluation results
+**Artifacts:**
+- `plots/error_distribution.png`
+- `plots/scatter_true_vs_predicted.png`
+- `plots/signal_distribution.png`
+- `summary/evaluation_summary.txt`
 
-## MLflow Projects
+### Comparing Experiments
 
-The project includes an `MLproject` file that defines:
-- Project name: `pokewatch_baseline`
-- Entry point: `train`
-- Parameters: `data_path`, `experiment_name`, `run_name`
+```bash
+# Via MLflow UI
+open http://127.0.0.1:5001
 
-This allows for reproducible runs using `mlflow run`.
+# Select multiple runs → Compare
+# View metrics side-by-side, plot comparisons, diff parameters
+```
 
-## Model Wrapper
+---
 
-The baseline model is wrapped in `BaselineModelWrapper` (using `mlflow.pyfunc.PythonModel`) to make it compatible with MLflow's model logging and serving capabilities.
+## Integration: Git + DVC + MLflow
 
-The wrapper implements:
-- `predict()`: Takes DataFrame with `card_id` and optional `date`, returns predictions
+### Complete Workflow
 
-## Troubleshooting
+**1. Modify code/config**
+```bash
+# Edit threshold in config/settings.yaml
+vim config/settings.yaml
+```
 
-### MLflow Server Not Accessible
+**2. Collect new data (optional)**
+```bash
+dvc repro collect
+```
 
-1. Check if the server is running:
-   ```bash
-   docker-compose ps mlflow
-   ```
+**3. Re-run pipeline**
+```bash
+dvc repro
+```
 
-2. Check logs:
-   ```bash
-   docker-compose logs mlflow
-   ```
+**4. Push data to DagsHub**
+```bash
+dvc push
+```
 
-3. Verify port 5001 is not in use:
-   ```bash
-   lsof -i :5001
-   ```
+**5. Commit changes**
+```bash
+git add dvc.lock config/settings.yaml
+git commit -m "exp: Test higher sell threshold (20%)"
+git tag exp-v0.2.1
+git push origin main --tags
+```
 
-### No Experiments Visible
+**6. View experiment in MLflow**
+```bash
+open http://127.0.0.1:5001
+```
 
-1. Ensure `MLFLOW_TRACKING_URI` is set correctly in `.env`
-2. Verify the script is connecting to the server (check logs)
-3. Check that the experiment name matches in the UI
+### Linking Versions
 
-### Model Loading Issues
+Each Git commit is linked to:
+- **Code version**: Git SHA
+- **Data version**: `dvc.lock` checksums
+- **Model version**: MLflow run ID
 
-1. Ensure processed data exists:
-   ```bash
-   ls data/processed/*.parquet
-   ```
+This ensures full reproducibility:
+```bash
+# Checkout specific version
+git checkout exp-v0.2.1
 
-2. Run feature engineering if needed:
-   ```bash
-   uv run python -m pokewatch.data.preprocessing.make_features
-   ```
+# Pull corresponding data
+dvc pull
 
-### Artifact Storage Issues
+# Reproduce exact results
+dvc repro
+```
 
-If you see errors like `[Errno 30] Read-only file system: '/mlruns'`:
-
-1. **Use Local File Tracking (Recommended for Development)**:
-   - Comment out or remove `MLFLOW_TRACKING_URI` from `.env`
-   - The script will use local file tracking automatically
-   - Artifacts will be stored in `./mlruns/` directory
-
-2. **If Using Remote Server**:
-   - Ensure the MLflow server is running: `docker-compose up mlflow`
-   - For production, configure S3/MinIO for artifact storage
-   - See docker-compose.yml for artifact storage configuration
+---
 
 ## Best Practices
 
-1. **Use Descriptive Run Names**: Include date, model version, or key parameters
-2. **Compare Multiple Runs**: Run experiments with different parameters to compare
-3. **Tag Important Runs**: Use MLflow tags to mark production-ready models
-4. **Regular Backups**: Backup the `mlruns/` directory and `mlflow.db` for important experiments
+### Data Versioning
 
-## Next Steps
+✅ **DO:**
+- Use `dvc push` after every data update
+- Commit `dvc.lock` with data changes
+- Use meaningful commit messages: `data: Add prices for 2025-11-30`
+- Keep data outside Git (use DVC)
 
-- **Model Registry**: Register production models in MLflow Model Registry
-- **Model Serving**: Use MLflow's model serving for production deployments
-- **Automated Tracking**: Integrate MLflow tracking into CI/CD pipelines
-- **Advanced Metrics**: Add business-specific metrics (BUY/SELL precision/recall)
+❌ **DON'T:**
+- Commit raw data files to Git
+- Manually edit `.dvc` files
+- Skip `dvc push` (data will be missing for others)
 
+### Experiment Tracking
+
+✅ **DO:**
+- Use descriptive experiment names: `baseline_tuning`, `threshold_optimization`
+- Log all relevant parameters and metrics
+- Add tags to important runs
+- Document significant findings in run notes
+
+❌ **DON'T:**
+- Run experiments without MLflow tracking
+- Delete runs from UI (they contain valuable history)
+- Forget to start MLflow/MinIO services
+
+### Pipeline Management
+
+✅ **DO:**
+- Run `dvc repro` instead of manual commands
+- Keep pipeline stages small and focused
+- Document stage purposes in `dvc.yaml` comments
+- Use `dvc dag` to visualize dependencies
+
+❌ **DON'T:**
+- Bypass the pipeline (breaks reproducibility)
+- Create circular dependencies
+- Hardcode paths (use params from `settings.yaml`)
+
+---
+
+## Troubleshooting
+
+### DVC Issues
+
+**Problem: `dvc push` fails with authentication error**
+```bash
+# Solution: Re-configure DagsHub credentials
+dvc remote modify dagshub --local user beatricedaniel
+dvc remote modify dagshub --local password <YOUR_DAGSHUB_TOKEN>
+```
+
+**Problem: `dvc pull` downloads nothing**
+```bash
+# Check remote configuration
+dvc remote list
+
+# Verify data exists on DagsHub
+# Visit: https://dagshub.com/beatricedaniel/pokewatch/data
+```
+
+**Problem: Pipeline stage won't re-run**
+```bash
+# Force re-run specific stage
+dvc repro --force train
+
+# Or clear cache and re-run
+dvc remove data/processed.dvc
+dvc repro preprocess
+```
+
+### MLflow Issues
+
+**Problem: MLflow UI not accessible**
+```bash
+# Check if MLflow service is running
+docker ps | grep mlflow
+
+# Start MLflow if stopped
+docker-compose up -d mlflow
+
+# Check logs
+docker logs pokewatch-mlflow
+```
+
+**Problem: Artifacts not appearing in UI**
+```bash
+# Ensure MinIO is running
+docker ps | grep minio
+
+# Verify MinIO bucket exists
+docker exec pokewatch-minio mc ls myminio/mlflow-artifacts
+
+# Check MLflow environment variables
+docker exec pokewatch-training env | grep MLFLOW
+```
+
+**Problem: Training fails with "Connection refused"**
+```bash
+# MLflow server may still be starting
+# Wait 15-20 seconds for boto3 installation
+docker logs pokewatch-mlflow --tail 50
+```
+
+### Pipeline Issues
+
+**Problem: `dvc repro` fails on train stage**
+```bash
+# Ensure Docker services are running
+docker-compose ps
+
+# Start required services
+docker-compose up -d minio mlflow
+
+# Check training container logs
+docker-compose run --rm training python -m pokewatch.models.train_baseline
+```
+
+---
+
+## Resources
+
+- **DVC Documentation**: https://dvc.org/doc
+- **MLflow Documentation**: https://mlflow.org/docs/latest/
+- **DagsHub Guide**: https://dagshub.com/docs
+- **Project Repository**: https://github.com/beatricedaniel/pokewatch
+- **DagsHub Data**: https://dagshub.com/beatricedaniel/pokewatch
+
+---
+
+## Phase 2 Deliverables ✅
+
+- [x] DVC configured with DagsHub remote
+- [x] Data versioned (data/raw, data/processed)
+- [x] 3-stage reproducible pipeline (dvc.yaml)
+- [x] MLflow tracking with Docker + MinIO
+- [x] Git integration (dvc.lock, tags)
+- [x] Documentation (this file)
+
+**Next Phase**: Model Registry, CI/CD, Kubernetes deployment
