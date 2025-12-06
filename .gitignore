@@ -1,3 +1,6 @@
+# Claude documentation only for dev
+docs/
+
 # Environment variables
 .env
 
