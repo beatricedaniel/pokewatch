@@ -181,4 +181,3 @@ class TestComputeSignal:
 
         assert signal == "BUY"
         assert deviation == pytest.approx(-0.06, abs=0.001)
-

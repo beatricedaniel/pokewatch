@@ -51,7 +51,7 @@ stages:
       md5: 87307db2437681bf438274834add1ddf
       size: 10432
   train:
-    cmd: docker-compose run --rm training python -m 
+    cmd: docker-compose run --rm training python -m
       pokewatch.models.train_baseline
     deps:
     - path: config/settings.yaml

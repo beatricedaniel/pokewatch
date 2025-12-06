@@ -13,4 +13,3 @@ entry_points:
         type: str
         default: "baseline_run"
     command: "python -m pokewatch.models.train_baseline --data_path {data_path} --experiment_name {experiment_name} --run_name {run_name}"
-

@@ -1,0 +1,210 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: 'pip'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          cd pokewatch
+          python -m uv venv
+          source .venv/bin/activate
+          python -m uv pip install -e ".[dev]"
+
+      - name: Run full test suite
+        run: |
+          cd pokewatch
+          source .venv/bin/activate
+          pytest tests/ -v --cov=src/pokewatch --cov-report=term
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./pokewatch
+          file: ./pokewatch/docker/api.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-api:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Bento image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./pokewatch
+          file: ./pokewatch/docker/bento.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-bento:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-bento:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ $(git tag | wc -l) -le 1 ]; then
+            CHANGELOG="Initial release"
+          else
+            PREV_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+            if [ -z "$PREV_TAG" ]; then
+              CHANGELOG=$(git log --pretty=format:"- %s" $(git rev-list --max-parents=0 HEAD)..HEAD)
+            else
+              CHANGELOG=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD)
+            fi
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release v${{ steps.version.outputs.version }}
+          body: |
+            # Release v${{ steps.version.outputs.version }}
+
+            ## What's Changed
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Docker Images
+
+            ### FastAPI Service
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-api:${{ steps.version.outputs.version }}
+            docker run -p 8000:8000 ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-api:${{ steps.version.outputs.version }}
+            ```
+
+            ### BentoML Service
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-bento:${{ steps.version.outputs.version }}
+            docker run -p 3000:3000 ${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-bento:${{ steps.version.outputs.version }}
+            ```
+
+            ## Deployment
+
+            ### Docker Compose
+            ```bash
+            docker-compose up -d
+            ```
+
+            ### Kubernetes
+            ```bash
+            kubectl apply -f k8s/
+            ```
+
+            ---
+            🤖 Generated with [GitHub Actions](https://github.com/features/actions)
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-staging:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.pokewatch.example.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying version ${{ needs.build-and-push.outputs.version }} to staging"
+          # Add actual deployment commands here
+          # Example: kubectl set image deployment/pokewatch-api pokewatch-api=${{ env.REGISTRY }}/${{ github.repository }}/pokewatch-api:${{ needs.build-and-push.outputs.version }}
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests against staging"
+          # Add smoke test commands here
+          # Example: curl -f https://staging.pokewatch.example.com/health
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Deployment to staging successful"
+
+  notify:
+    needs: [test, build-and-push, deploy-staging]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Create deployment summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** v${{ needs.build-and-push.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Jobs Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build & Push: ${{ needs.build-and-push.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy Staging: ${{ needs.deploy-staging.result }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Release v${{ needs.build-and-push.outputs.version }} failed"
+          # Add notification logic here (Slack, email, etc.)

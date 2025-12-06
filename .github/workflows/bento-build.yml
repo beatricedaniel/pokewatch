@@ -1,0 +1,140 @@
+name: BentoML Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for Bento'
+        required: true
+        default: 'latest'
+
+jobs:
+  build-bento:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: 'pip'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          cd pokewatch
+          python -m uv venv
+          source .venv/bin/activate
+          python -m uv pip install -e ".[dev]"
+
+      - name: Verify baseline model exists
+        run: |
+          cd pokewatch
+          if [ ! -d "models/baseline" ]; then
+            echo "Error: Baseline model not found. Training model..."
+            source .venv/bin/activate
+            python -m pokewatch.models.train_baseline
+          fi
+
+      - name: Build Bento
+        run: |
+          cd pokewatch
+          source .venv/bin/activate
+          bash scripts/build_bento.sh
+
+      - name: List Bentos
+        run: |
+          cd pokewatch
+          source .venv/bin/activate
+          bentoml list
+
+      - name: Export Bento metadata
+        id: bento_meta
+        run: |
+          cd pokewatch
+          source .venv/bin/activate
+          BENTO_TAG=$(bentoml list --output json | jq -r '.[0].tag' 2>/dev/null || echo "pokewatch_service:latest")
+          echo "bento_tag=$BENTO_TAG" >> $GITHUB_OUTPUT
+          echo "Bento tag: $BENTO_TAG"
+
+      - name: Run Bento validation tests
+        run: |
+          cd pokewatch
+          source .venv/bin/activate
+          # Start Bento server in background
+          bentoml serve src.pokewatch.serving.service:PokeWatchService --port 3000 &
+          BENTO_PID=$!
+
+          # Wait for server to start
+          sleep 15
+
+          # Test health endpoint
+          curl -f http://localhost:3000/health || exit 1
+
+          # Test predict endpoint
+          curl -X POST http://localhost:3000/predict \
+            -H "Content-Type: application/json" \
+            -d '{"card_id": "sv4pt5-001", "date": "2024-01-15"}' || exit 1
+
+          # Stop server
+          kill $BENTO_PID
+
+      - name: Containerize Bento
+        run: |
+          cd pokewatch
+          source .venv/bin/activate
+          bentoml containerize ${{ steps.bento_meta.outputs.bento_tag }} -t pokewatch-bento:${{ github.ref_name }}
+
+      - name: Test containerized Bento
+        run: |
+          docker run -d --name test-bento -p 3000:3000 pokewatch-bento:${{ github.ref_name }}
+          sleep 15
+          curl -f http://localhost:3000/health || exit 1
+          docker stop test-bento
+          docker rm test-bento
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push to registry
+        run: |
+          docker tag pokewatch-bento:${{ github.ref_name }} ghcr.io/${{ github.repository }}/pokewatch-bento:${{ github.ref_name }}
+          docker tag pokewatch-bento:${{ github.ref_name }} ghcr.io/${{ github.repository }}/pokewatch-bento:latest
+          docker push ghcr.io/${{ github.repository }}/pokewatch-bento:${{ github.ref_name }}
+          docker push ghcr.io/${{ github.repository }}/pokewatch-bento:latest
+
+      - name: Save Bento metadata as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bento-metadata
+          path: |
+            pokewatch/bentofile.yaml
+          retention-days: 90
+
+      - name: Create deployment summary
+        run: |
+          echo "## BentoML Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Bento Tag:** ${{ steps.bento_meta.outputs.bento_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ghcr.io/${{ github.repository }}/pokewatch-bento" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Command" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ github.repository }}/pokewatch-bento:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -p 3000:3000 ghcr.io/${{ github.repository }}/pokewatch-bento:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

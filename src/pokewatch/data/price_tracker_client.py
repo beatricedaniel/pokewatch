@@ -9,7 +9,6 @@ The client focuses on Japanese cards and includes price history data.
 
 import logging
 from typing import Optional, Any
-from datetime import datetime
 
 import requests
 from requests.exceptions import RequestException, Timeout, HTTPError
@@ -20,21 +19,25 @@ logger = logging.getLogger(__name__)
 
 class PokemonPriceTrackerError(Exception):
     """Base exception for Pokémon Price Tracker API errors."""
+
     pass
 
 
 class PokemonPriceTrackerAuthError(PokemonPriceTrackerError):
     """Authentication error (401)."""
+
     pass
 
 
 class PokemonPriceTrackerNotFoundError(PokemonPriceTrackerError):
     """Resource not found error (404)."""
+
     pass
 
 
 class PokemonPriceTrackerRateLimitError(PokemonPriceTrackerError):
     """Rate limit exceeded error (429)."""
+
     pass
 
 
@@ -78,11 +81,13 @@ class PokemonPriceTrackerClient:
         self.default_language = default_language
 
         self._session = requests.Session()
-        self._session.headers.update({
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "PokeWatch/0.1.0",
-        })
+        self._session.headers.update(
+            {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "PokeWatch/0.1.0",
+            }
+        )
 
     def _make_request(
         self,
@@ -131,9 +136,7 @@ class PokemonPriceTrackerClient:
                     "Authentication failed. Please check your API key."
                 )
             elif response.status_code == 404:
-                raise PokemonPriceTrackerNotFoundError(
-                    f"Resource not found: {url}"
-                )
+                raise PokemonPriceTrackerNotFoundError(f"Resource not found: {url}")
             elif response.status_code == 429:
                 raise PokemonPriceTrackerRateLimitError(
                     "Rate limit exceeded. Please try again later."
@@ -147,14 +150,10 @@ class PokemonPriceTrackerClient:
                 return response.json()
             except ValueError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
-                raise PokemonPriceTrackerError(
-                    f"Invalid JSON response from API: {e}"
-                )
+                raise PokemonPriceTrackerError(f"Invalid JSON response from API: {e}")
 
         except Timeout:
-            raise PokemonPriceTrackerError(
-                f"Request timed out after {self.timeout} seconds"
-            )
+            raise PokemonPriceTrackerError(f"Request timed out after {self.timeout} seconds")
         except HTTPError as e:
             raise PokemonPriceTrackerError(f"HTTP error occurred: {e}")
         except RequestException as e:
@@ -288,9 +287,7 @@ class PokemonPriceTrackerClient:
             ... )
         """
         if not tcgplayer_id and not (card_number and set_id_or_code):
-            raise ValueError(
-                "Must provide either tcgplayer_id OR (card_number + set_id_or_code)"
-            )
+            raise ValueError("Must provide either tcgplayer_id OR (card_number + set_id_or_code)")
 
         params = {
             "language": language or self.default_language,

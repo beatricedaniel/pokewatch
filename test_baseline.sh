@@ -43,4 +43,3 @@ for card_id in model.get_all_card_ids()[:3]:
 echo "=========================================="
 echo "All tests complete!"
 echo "=========================================="
-

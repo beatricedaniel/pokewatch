@@ -37,4 +37,5 @@ dev = [
     "ruff",
     "black",
     "mypy",
+    "pre-commit",
 ]

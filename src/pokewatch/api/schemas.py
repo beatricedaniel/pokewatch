@@ -64,4 +64,3 @@ class HealthResponse(BaseModel):
     cards_count: Optional[int] = Field(
         default=None, description="Number of cards in the model (if loaded)"
     )
-

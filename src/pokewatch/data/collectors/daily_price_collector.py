@@ -83,10 +83,12 @@ def extract_price_history(card_data: dict) -> list[dict]:
 
     if "priceHistory" in card_data and card_data["priceHistory"]:
         for date_str, price in card_data["priceHistory"].items():
-            price_history.append({
-                "date": date_str,
-                "market_price": float(price) if price is not None else None,
-            })
+            price_history.append(
+                {
+                    "date": date_str,
+                    "market_price": float(price) if price is not None else None,
+                }
+            )
 
     return price_history
 
@@ -126,35 +128,47 @@ def process_card_data(
 
     # If no price history, create a single row with current data
     if not price_history:
-        rows.append({
-            "card_id": internal_id,
-            "card_number": card_number,
-            "card_name": api_card.get("name", "Unknown"),
-            "set_id": set_id,
-            "set_name": api_card.get("set", {}).get("name") if isinstance(api_card.get("set"), dict) else None,
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "market_price": current_price,
-            "category": category,
-            "rarity": api_card.get("rarity"),
-            "tcgplayer_id": api_card.get("tcgPlayerId"),
-            "source": "pokemonpricetracker",
-        })
-    else:
-        # Create a row for each date in price history
-        for price_entry in price_history:
-            rows.append({
+        rows.append(
+            {
                 "card_id": internal_id,
                 "card_number": card_number,
                 "card_name": api_card.get("name", "Unknown"),
                 "set_id": set_id,
-                "set_name": api_card.get("set", {}).get("name") if isinstance(api_card.get("set"), dict) else None,
-                "date": price_entry["date"],
-                "market_price": price_entry["market_price"],
+                "set_name": (
+                    api_card.get("set", {}).get("name")
+                    if isinstance(api_card.get("set"), dict)
+                    else None
+                ),
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "market_price": current_price,
                 "category": category,
                 "rarity": api_card.get("rarity"),
                 "tcgplayer_id": api_card.get("tcgPlayerId"),
                 "source": "pokemonpricetracker",
-            })
+            }
+        )
+    else:
+        # Create a row for each date in price history
+        for price_entry in price_history:
+            rows.append(
+                {
+                    "card_id": internal_id,
+                    "card_number": card_number,
+                    "card_name": api_card.get("name", "Unknown"),
+                    "set_id": set_id,
+                    "set_name": (
+                        api_card.get("set", {}).get("name")
+                        if isinstance(api_card.get("set"), dict)
+                        else None
+                    ),
+                    "date": price_entry["date"],
+                    "market_price": price_entry["market_price"],
+                    "category": category,
+                    "rarity": api_card.get("rarity"),
+                    "tcgplayer_id": api_card.get("tcgPlayerId"),
+                    "source": "pokemonpricetracker",
+                }
+            )
 
     return rows
 
@@ -209,7 +223,7 @@ def collect_daily_prices(
     tracked_cards_by_tcgplayer = {}
     tracked_cards_by_card_id = {}
     tracked_cards_by_number = {}  # Only used if tcgplayer_id is not available
-    
+
     for card in cards_config["cards"]:
         if card.get("monitoring", {}).get("active", True):
             # Primary: match by tcgplayer_id (most reliable for variants)
@@ -227,7 +241,7 @@ def collect_daily_prices(
     for card in cards_config["cards"]:
         if card.get("monitoring", {}).get("active", True):
             unique_tracked.add(card.get("internal_id", card.get("card_number", "")))
-    
+
     logger.info(f"Tracking {len(unique_tracked)} cards")
 
     # Create API client
@@ -253,7 +267,9 @@ def collect_daily_prices(
                 # Try to fetch by tcgplayer_id first (most efficient)
                 if "tcgplayer_id" in card_config:
                     tcgplayer_id = int(card_config["tcgplayer_id"])
-                    logger.debug(f"Fetching card by tcgplayer_id: {tcgplayer_id} ({card_config['name']})")
+                    logger.debug(
+                        f"Fetching card by tcgplayer_id: {tcgplayer_id} ({card_config['name']})"
+                    )
                     response = client.get_single_card_with_history(
                         tcgplayer_id=tcgplayer_id,
                         language=set_language,
@@ -261,10 +277,12 @@ def collect_daily_prices(
                     )
                     # Single card response: data is a dict, not a list
                     api_card = response.get("data")
-                    
+
                 # Fallback: fetch by card_id if available
                 elif "card_id" in card_config:
-                    logger.debug(f"Fetching card by card_id: {card_config['card_id']} ({card_config['name']})")
+                    logger.debug(
+                        f"Fetching card by card_id: {card_config['card_id']} ({card_config['name']})"
+                    )
                     # Note: API might not support direct card_id lookup, so we'll need to use card_number + set
                     response = client.get_single_card_with_history(
                         card_number=card_config["card_number"],
@@ -273,10 +291,12 @@ def collect_daily_prices(
                         days=days_history,
                     )
                     api_card = response.get("data")
-                    
+
                 # Last resort: fetch by card_number + set
                 else:
-                    logger.debug(f"Fetching card by card_number: {card_config['card_number']} ({card_config['name']})")
+                    logger.debug(
+                        f"Fetching card by card_number: {card_config['card_number']} ({card_config['name']})"
+                    )
                     response = client.get_single_card_with_history(
                         card_number=card_config["card_number"],
                         set_id_or_code=set_id,
@@ -287,11 +307,13 @@ def collect_daily_prices(
 
                 if not api_card:
                     logger.warning(f"No data returned for card: {card_config['name']}")
-                    failed_cards.append(card_config['name'])
+                    failed_cards.append(card_config["name"])
                     continue
 
                 matched_cards += 1
-                api_card_number = api_card.get("cardNumber") or api_card.get("number", card_config.get("card_number", ""))
+                api_card_number = api_card.get("cardNumber") or api_card.get(
+                    "number", card_config.get("card_number", "")
+                )
 
                 logger.debug(
                     f"Processing card: {card_config['name']} "
@@ -311,7 +333,7 @@ def collect_daily_prices(
 
             except Exception as e:
                 logger.warning(f"Failed to fetch card {card_config['name']}: {e}")
-                failed_cards.append(card_config['name'])
+                failed_cards.append(card_config["name"])
                 continue
 
     finally:
@@ -357,7 +379,7 @@ def collect_daily_prices(
         logger.info(f"  Date range: {df['date'].min()} to {df['date'].max()}")
         logger.info(f"  Unique cards: {df['card_id'].nunique()}")
         logger.info(f"  Total records: {len(df)}")
-        logger.info(f"\nPrice statistics:")
+        logger.info("\nPrice statistics:")
         logger.info(f"  Min: ${df['market_price'].min():.2f}")
         logger.info(f"  Max: ${df['market_price'].max():.2f}")
         logger.info(f"  Mean: ${df['market_price'].mean():.2f}")
@@ -392,7 +414,7 @@ Examples:
         type=str,
         default=None,
         help="Date for output filename (YYYY-MM-DD). Default: today's date. "
-             "Note: This only affects the filename, not the data fetched from API.",
+        "Note: This only affects the filename, not the data fetched from API.",
     )
 
     parser.add_argument(
@@ -418,7 +440,8 @@ Examples:
     )
 
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Enable verbose logging (DEBUG level)",
     )

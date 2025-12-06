@@ -6,7 +6,6 @@ Tests the /fair_price endpoint with real or mocked baseline model.
 
 import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, patch
 
 import pandas as pd
 from fastapi.testclient import TestClient
@@ -23,45 +22,49 @@ def mock_features_df():
     data = []
     # Card 1: 3 dates
     for i in range(3):
-        data.append({
-            "card_id": "test_card_1",
-            "card_number": "001/165",
-            "card_name": "Test Card 1",
-            "set_id": "test_set",
-            "set_name": "Test Set",
-            "date": base_date + timedelta(days=i),
-            "market_price": 100.0 + (i * 5.0),
-            "category": "grail",
-            "rarity": "Rare",
-            "tcgplayer_id": "123",
-            "source": "test",
-            "lag_1": None if i == 0 else 100.0 + ((i - 1) * 5.0),
-            "rolling_mean_3": 100.0 + (i * 2.5),
-            "rolling_mean_5": 100.0 + (i * 2.0),
-            "price_return_1d": None if i == 0 else 0.05,
-            "fair_value_baseline": 100.0 + (i * 2.5),
-        })
+        data.append(
+            {
+                "card_id": "test_card_1",
+                "card_number": "001/165",
+                "card_name": "Test Card 1",
+                "set_id": "test_set",
+                "set_name": "Test Set",
+                "date": base_date + timedelta(days=i),
+                "market_price": 100.0 + (i * 5.0),
+                "category": "grail",
+                "rarity": "Rare",
+                "tcgplayer_id": "123",
+                "source": "test",
+                "lag_1": None if i == 0 else 100.0 + ((i - 1) * 5.0),
+                "rolling_mean_3": 100.0 + (i * 2.5),
+                "rolling_mean_5": 100.0 + (i * 2.0),
+                "price_return_1d": None if i == 0 else 0.05,
+                "fair_value_baseline": 100.0 + (i * 2.5),
+            }
+        )
 
     # Card 2: 2 dates
     for i in range(2):
-        data.append({
-            "card_id": "test_card_2",
-            "card_number": "002/165",
-            "card_name": "Test Card 2",
-            "set_id": "test_set",
-            "set_name": "Test Set",
-            "date": base_date + timedelta(days=i),
-            "market_price": 50.0 + (i * 3.0),
-            "category": "chase",
-            "rarity": "Common",
-            "tcgplayer_id": "456",
-            "source": "test",
-            "lag_1": None if i == 0 else 50.0,
-            "rolling_mean_3": 50.0 + (i * 1.5),
-            "rolling_mean_5": 50.0 + (i * 1.2),
-            "price_return_1d": None if i == 0 else 0.06,
-            "fair_value_baseline": 50.0 + (i * 1.5),
-        })
+        data.append(
+            {
+                "card_id": "test_card_2",
+                "card_number": "002/165",
+                "card_name": "Test Card 2",
+                "set_id": "test_set",
+                "set_name": "Test Set",
+                "date": base_date + timedelta(days=i),
+                "market_price": 50.0 + (i * 3.0),
+                "category": "chase",
+                "rarity": "Common",
+                "tcgplayer_id": "456",
+                "source": "test",
+                "lag_1": None if i == 0 else 50.0,
+                "rolling_mean_3": 50.0 + (i * 1.5),
+                "rolling_mean_5": 50.0 + (i * 1.2),
+                "price_return_1d": None if i == 0 else 0.06,
+                "fair_value_baseline": 50.0 + (i * 1.5),
+            }
+        )
 
     return pd.DataFrame(data)
 
@@ -247,4 +250,3 @@ class TestListCardsEndpoint:
         assert data["count"] == 2
         assert "test_card_1" in data["cards"]
         assert "test_card_2" in data["cards"]
-

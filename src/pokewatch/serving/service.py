@@ -6,12 +6,12 @@ Replaces the FastAPI application with production-grade serving.
 
 import logging
 from typing import Optional, List
-from datetime import date, datetime
+from datetime import datetime
 
 import bentoml
 from pydantic import BaseModel, Field
 
-from pokewatch.models.baseline import BaselineFairPriceModel, load_baseline_model
+from pokewatch.models.baseline import load_baseline_model
 from pokewatch.core.decision_rules import DecisionConfig, compute_signal
 from pokewatch.config import get_settings
 
@@ -21,8 +21,13 @@ logger = logging.getLogger(__name__)
 # Request/Response schemas (matching FastAPI schemas)
 class PredictionRequest(BaseModel):
     """Request schema for fair price prediction."""
-    card_id: str = Field(..., description="Card identifier (e.g., 'sv2a_151_charizard_ex___201_165')")
-    date: Optional[str] = Field(None, description="Date for prediction (YYYY-MM-DD). Defaults to latest.")
+
+    card_id: str = Field(
+        ..., description="Card identifier (e.g., 'sv2a_151_charizard_ex___201_165')"
+    )
+    date: Optional[str] = Field(
+        None, description="Date for prediction (YYYY-MM-DD). Defaults to latest."
+    )
 
     class Config:
         json_schema_extra = {
@@ -35,6 +40,7 @@ class PredictionRequest(BaseModel):
 
 class PredictionResponse(BaseModel):
     """Response schema for fair price prediction."""
+
     card_id: str
     date: str
     market_price: float
@@ -73,7 +79,7 @@ class PokeWatchService:
     def __init__(self):
         """Initialize service and load model."""
         logger.info("Initializing PokeWatch service...")
-        
+
         # Load settings and decision config (lazy loading - only when service starts)
         # This allows the module to be imported during Docker build without requiring API key
         settings = get_settings()
@@ -81,7 +87,7 @@ class PokeWatchService:
             buy_threshold_pct=settings.model.default_buy_threshold_pct,
             sell_threshold_pct=settings.model.default_sell_threshold_pct,
         )
-        
+
         # Load model
         self.model = load_baseline_model()
         logger.info(f"Model loaded with {len(self.model.get_all_card_ids())} cards")
@@ -118,15 +124,14 @@ class PokeWatchService:
 
         # Get prediction from model
         resolved_date, market_price, fair_value = self.model.predict(
-            card_id=card_id,
-            date=pred_date
+            card_id=card_id, date=pred_date
         )
 
         # Compute signal
         signal, delta_pct = compute_signal(
             market_price=market_price,
-            fair_value=fair_value,
-            config=self.decision_cfg,
+            fair_price=fair_value,
+            cfg=self.decision_cfg,
         )
 
         # Build response
@@ -164,9 +169,11 @@ class PokeWatchService:
             except Exception as e:
                 logger.error(f"Batch prediction failed for {req.card_id}: {e}")
                 # Add error entry
-                results.append({
-                    "card_id": req.card_id,
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "card_id": req.card_id,
+                        "error": str(e),
+                    }
+                )
 
         return results

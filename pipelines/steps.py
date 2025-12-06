@@ -2,6 +2,7 @@
 ZenML pipeline steps for PokeWatch ML workflow.
 
 These steps can be orchestrated with ZenML or used independently.
+Week 2, Day 5: Added ZenML @step decorators for pipeline orchestration.
 """
 
 import logging
@@ -10,9 +11,22 @@ from pathlib import Path
 
 import pandas as pd
 
+# ZenML imports (Week 2, Day 5)
+try:
+    from zenml import step
+
+    ZENML_AVAILABLE = True
+except ImportError:
+    # Fallback if ZenML not installed
+    def step(func):
+        return func
+
+    ZENML_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
+@step
 def collect_data_step() -> str:
     """
     Collect latest card prices from Pokémon Price Tracker API.
@@ -24,11 +38,12 @@ def collect_data_step() -> str:
 
     # Run data collection via subprocess to use existing code
     import subprocess
+
     result = subprocess.run(
         ["python", "-m", "pokewatch.data.collectors.daily_price_collector"],
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
 
     logger.info("Data collection output:")
@@ -36,6 +51,7 @@ def collect_data_step() -> str:
 
     # Find latest parquet file
     from pokewatch.config import get_data_path
+
     raw_dir = get_data_path("raw")
 
     parquet_files = list(raw_dir.glob("*.parquet"))
@@ -48,6 +64,7 @@ def collect_data_step() -> str:
     return str(latest_file)
 
 
+@step
 def preprocess_data_step(raw_data_path: str) -> str:
     """
     Transform raw data into features for modeling.
@@ -62,11 +79,12 @@ def preprocess_data_step(raw_data_path: str) -> str:
 
     # Run preprocessing
     import subprocess
+
     result = subprocess.run(
         ["python", "-m", "pokewatch.data.preprocessing.make_features"],
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
 
     logger.info("Preprocessing output:")
@@ -78,9 +96,7 @@ def preprocess_data_step(raw_data_path: str) -> str:
 
     cards_config = load_cards_config()
     set_name = cards_config["set"]["name"]
-    safe_set_name = (
-        set_name.lower().replace(" ", "_").replace(":", "").replace("-", "_")
-    )
+    safe_set_name = set_name.lower().replace(" ", "_").replace(":", "").replace("-", "_")
     safe_set_name = "".join(c for c in safe_set_name if c.isalnum() or c == "_")
 
     processed_file = get_data_path("processed") / f"{safe_set_name}.parquet"
@@ -93,6 +109,7 @@ def preprocess_data_step(raw_data_path: str) -> str:
     return str(processed_file)
 
 
+@step
 def train_model_step(features_path: str) -> Tuple[str, dict]:
     """
     Train baseline model on features.
@@ -109,6 +126,7 @@ def train_model_step(features_path: str) -> Tuple[str, dict]:
     features_df = pd.read_parquet(features_path)
 
     from pokewatch.models.baseline import BaselineFairPriceModel
+
     model = BaselineFairPriceModel(features_df)
 
     logger.info(f"Model trained with {len(model.get_all_card_ids())} cards")
@@ -126,7 +144,9 @@ def train_model_step(features_path: str) -> Tuple[str, dict]:
 
     metrics = calculate_metrics(features_df, model, decision_cfg)
 
-    logger.info(f"Model metrics: MAPE={metrics['mape']:.2f}, Coverage={metrics['coverage_rate']:.2%}")
+    logger.info(
+        f"Model metrics: MAPE={metrics['mape']:.2f}, Coverage={metrics['coverage_rate']:.2%}"
+    )
 
     # Save model artifacts
     project_root = Path(__file__).parent.parent
@@ -164,6 +184,7 @@ def train_model_step(features_path: str) -> Tuple[str, dict]:
     return str(models_dir), metrics
 
 
+@step
 def validate_model_step(metrics: dict) -> bool:
     """
     Validate model meets quality thresholds.
@@ -179,19 +200,21 @@ def validate_model_step(metrics: dict) -> bool:
     MAPE_THRESHOLD = 20.0  # Relaxed for baseline model
     COVERAGE_THRESHOLD = 0.80
 
-    is_valid = (
-        metrics["mape"] <= MAPE_THRESHOLD and
-        metrics["coverage_rate"] >= COVERAGE_THRESHOLD
-    )
+    is_valid = metrics["mape"] <= MAPE_THRESHOLD and metrics["coverage_rate"] >= COVERAGE_THRESHOLD
 
     if is_valid:
-        logger.info(f"✓ Model valid: MAPE={metrics['mape']:.2f} ≤ {MAPE_THRESHOLD}, Coverage={metrics['coverage_rate']:.2%} ≥ {COVERAGE_THRESHOLD:.0%}")
+        logger.info(
+            f"✓ Model valid: MAPE={metrics['mape']:.2f} ≤ {MAPE_THRESHOLD}, Coverage={metrics['coverage_rate']:.2%} ≥ {COVERAGE_THRESHOLD:.0%}"
+        )
     else:
-        logger.warning(f"✗ Model invalid: MAPE={metrics['mape']:.2f} > {MAPE_THRESHOLD} or Coverage={metrics['coverage_rate']:.2%} < {COVERAGE_THRESHOLD:.0%}")
+        logger.warning(
+            f"✗ Model invalid: MAPE={metrics['mape']:.2f} > {MAPE_THRESHOLD} or Coverage={metrics['coverage_rate']:.2%} < {COVERAGE_THRESHOLD:.0%}"
+        )
 
     return is_valid
 
 
+@step
 def build_bento_step(model_path: str, is_valid: bool) -> str:
     """
     Build BentoML service with the trained model.
@@ -216,14 +239,15 @@ def build_bento_step(model_path: str, is_valid: bool) -> str:
         capture_output=True,
         text=True,
         check=True,
-        cwd=str(Path(__file__).parent.parent)
+        cwd=str(Path(__file__).parent.parent),
     )
 
     logger.info(result.stdout)
 
     # Try to extract tag from build output first (most reliable)
     import re
-    tag_match = re.search(r'pokewatch_service:([a-zA-Z0-9_-]+)', result.stdout)
+
+    tag_match = re.search(r"pokewatch_service:([a-zA-Z0-9_-]+)", result.stdout)
     if tag_match:
         bento_tag = f"pokewatch_service:{tag_match.group(1)}"
         logger.info(f"✓ Built Bento (from output): {bento_tag}")
@@ -232,6 +256,7 @@ def build_bento_step(model_path: str, is_valid: bool) -> str:
     # Fallback: Use BentoML Python API to get latest Bento
     try:
         import bentoml
+
         bentos = bentoml.list()
         if bentos:
             # Get the most recent Bento
@@ -245,29 +270,22 @@ def build_bento_step(model_path: str, is_valid: bool) -> str:
 
     # Last resort: try CLI list command and parse output
     import shutil
+
     if shutil.which("uv"):
         result = subprocess.run(
-            ["uv", "run", "bentoml", "list"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["uv", "run", "bentoml", "list"], capture_output=True, text=True, check=False
         )
     else:
-        result = subprocess.run(
-            ["bentoml", "list"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
-    
+        result = subprocess.run(["bentoml", "list"], capture_output=True, text=True, check=False)
+
     if result.returncode == 0 and result.stdout:
         # Parse tag from table output (format: "pokewatch_service:xxxxx")
-        tag_match = re.search(r'pokewatch_service:([a-zA-Z0-9_-]+)', result.stdout)
+        tag_match = re.search(r"pokewatch_service:([a-zA-Z0-9_-]+)", result.stdout)
         if tag_match:
             bento_tag = f"pokewatch_service:{tag_match.group(1)}"
             logger.info(f"✓ Built Bento (from CLI): {bento_tag}")
             return bento_tag
-    
+
     # If all else fails, use default latest tag
     logger.warning("Could not determine Bento tag from build output, using 'latest'")
     return "pokewatch_service:latest"

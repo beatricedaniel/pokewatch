@@ -8,7 +8,7 @@ No training required - just uses the fair_value_baseline from feature engineerin
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 import pandas as pd
 
@@ -51,21 +51,22 @@ class BaselineFairPriceModel:
             self.features_df["date"] = self.features_df["date"].dt.date
 
         # Build index keyed by (card_id, date) for fast lookups
-        self.features_df = self.features_df.sort_values(["card_id", "date"]).reset_index(
-            drop=True
-        )
+        self.features_df = self.features_df.sort_values(["card_id", "date"]).reset_index(drop=True)
         self.features_df.set_index(["card_id", "date"], inplace=True)
 
         # Keep latest date per card handy
         self.latest_dates = (
-            self.features_df.reset_index()
-            .groupby("card_id")["date"]
-            .max()
-            .to_dict()
+            self.features_df.reset_index().groupby("card_id")["date"].max().to_dict()
         )
 
         # Track known card IDs
         self.known_card_ids = set(self.features_df.index.get_level_values("card_id").unique())
+
+        # Simple in-memory cache for predictions (Week 2, Day 4)
+        self._prediction_cache: Dict[str, Tuple[date, float, float]] = {}
+        self._cache_max_size = 1000
+        self._cache_hits = 0
+        self._cache_misses = 0
 
         logger.info(
             f"Initialized BaselineFairPriceModel with {len(self.known_card_ids)} cards, "
@@ -106,6 +107,14 @@ class BaselineFairPriceModel:
         else:
             resolved_date = date
 
+        # Check cache first (Week 2, Day 4: Simple in-memory cache)
+        cache_key = f"{card_id}:{resolved_date}"
+        if cache_key in self._prediction_cache:
+            self._cache_hits += 1
+            return self._prediction_cache[cache_key]
+
+        self._cache_misses += 1
+
         # Lookup values
         try:
             row = self.features_df.loc[(card_id, resolved_date)]
@@ -117,7 +126,17 @@ class BaselineFairPriceModel:
                 f"Available dates for this card: {sorted(self._get_available_dates(card_id))}"
             )
 
-        return (resolved_date, market_price, fair_price)
+        result = (resolved_date, market_price, fair_price)
+
+        # Store in cache (simple LRU-like: remove oldest if full)
+        if len(self._prediction_cache) >= self._cache_max_size:
+            # Remove oldest entry (first key in dict)
+            oldest_key = next(iter(self._prediction_cache))
+            del self._prediction_cache[oldest_key]
+
+        self._prediction_cache[cache_key] = result
+
+        return result
 
     def _get_available_dates(self, card_id: str) -> list[date]:
         """Get all available dates for a card."""
@@ -143,6 +162,32 @@ class BaselineFairPriceModel:
         """Get list of all known card IDs."""
         return sorted(list(self.known_card_ids))
 
+    def get_cache_stats(self) -> dict:
+        """
+        Get cache statistics (Week 2, Day 4).
+
+        Returns:
+            Dictionary with cache hits, misses, size, and hit rate
+        """
+        total_requests = self._cache_hits + self._cache_misses
+        hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0.0
+
+        return {
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_size": len(self._prediction_cache),
+            "cache_max_size": self._cache_max_size,
+            "hit_rate": hit_rate,
+            "total_requests": total_requests,
+        }
+
+    def clear_cache(self):
+        """Clear the prediction cache and reset statistics."""
+        self._prediction_cache.clear()
+        self._cache_hits = 0
+        self._cache_misses = 0
+        logger.info("Prediction cache cleared")
+
 
 def load_baseline_model(processed_data_path: Optional[Path] = None) -> BaselineFairPriceModel:
     """
@@ -166,9 +211,7 @@ def load_baseline_model(processed_data_path: Optional[Path] = None) -> BaselineF
         set_name = cards_config["set"]["name"]
 
         # Sanitize set name for filename
-        safe_set_name = (
-            set_name.lower().replace(" ", "_").replace(":", "").replace("-", "_")
-        )
+        safe_set_name = set_name.lower().replace(" ", "_").replace(":", "").replace("-", "_")
         safe_set_name = "".join(c for c in safe_set_name if c.isalnum() or c == "_")
 
         processed_data_path = get_data_path("processed") / f"{safe_set_name}.parquet"
@@ -184,4 +227,3 @@ def load_baseline_model(processed_data_path: Optional[Path] = None) -> BaselineF
     features_df = pd.read_parquet(processed_data_path)
 
     return BaselineFairPriceModel(features_df)
-

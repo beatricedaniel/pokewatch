@@ -10,7 +10,6 @@ Requires: BentoML service running on http://localhost:3000
 
 import pytest
 import requests
-from datetime import date
 
 
 @pytest.fixture(scope="module")
@@ -73,10 +72,7 @@ class TestPredictEndpoint:
             "card_id": "sv2a_151_charizard_ex___201_165",
         }
 
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
 
         assert response.status_code == 200
 
@@ -86,14 +82,18 @@ class TestPredictEndpoint:
             "card_id": "sv2a_151_charizard_ex___201_165",
         }
 
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
         data = response.json()
 
         # Verify all required fields present
-        required_fields = ["card_id", "date", "market_price", "fair_price", "deviation_pct", "signal"]
+        required_fields = [
+            "card_id",
+            "date",
+            "market_price",
+            "fair_price",
+            "deviation_pct",
+            "signal",
+        ]
         for field in required_fields:
             assert field in data, f"Missing field: {field}"
 
@@ -103,25 +103,16 @@ class TestPredictEndpoint:
             "card_id": "sv2a_151_charizard_ex___201_165",
         }
 
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
         data = response.json()
 
         assert data["signal"] in ["BUY", "SELL", "HOLD"]
 
     def test_predict_endpoint_with_date(self, bento_url, check_service_running):
         """Test prediction with specific date."""
-        payload = {
-            "card_id": "sv2a_151_charizard_ex___201_165",
-            "date": "2025-11-30"
-        }
+        payload = {"card_id": "sv2a_151_charizard_ex___201_165", "date": "2025-11-30"}
 
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
 
         # Should succeed or return 404 if date not available
         assert response.status_code in [200, 404]
@@ -132,10 +123,7 @@ class TestPredictEndpoint:
             "card_id": "sv2a_151_charizard_ex___201_165",
         }
 
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
         data = response.json()
 
         assert isinstance(data["card_id"], str)
@@ -151,10 +139,7 @@ class TestPredictEndpoint:
             "card_id": "invalid_card_id_12345",
         }
 
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
 
         # Should return 4xx or 5xx error
         assert response.status_code >= 400
@@ -211,10 +196,7 @@ class TestBatchPredictEndpoint:
             {"card_id": "sv2a_151_charizard_ex___201_165"},
         ]
 
-        response = requests.post(
-            f"{bento_url}/batch_predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/batch_predict", json=payload)
 
         assert response.status_code == 200
 
@@ -232,10 +214,7 @@ class TestBatchPredictEndpoint:
             {"card_id": available_cards[1]},
         ]
 
-        response = requests.post(
-            f"{bento_url}/batch_predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/batch_predict", json=payload)
         data = response.json()
 
         assert response.status_code == 200
@@ -249,10 +228,7 @@ class TestBatchPredictEndpoint:
             {"card_id": "invalid_card_12345"},  # Invalid
         ]
 
-        response = requests.post(
-            f"{bento_url}/batch_predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/batch_predict", json=payload)
 
         # Should still return 200 with mixed results
         assert response.status_code == 200
@@ -302,10 +278,7 @@ class TestPerformance:
         }
 
         start = time.time()
-        response = requests.post(
-            f"{bento_url}/predict",
-            json=payload
-        )
+        response = requests.post(f"{bento_url}/predict", json=payload)
         latency = time.time() - start
 
         assert response.status_code == 200

@@ -164,7 +164,7 @@ class TestPipelineIntegration:
     @pytest.mark.slow
     @pytest.mark.skipif(
         not Path("data/processed/sv2a_pokemon_card_151.parquet").exists(),
-        reason="Requires processed data. Run 'make preprocess' first."
+        reason="Requires processed data. Run 'make preprocess' first.",
     )
     def test_train_and_validate_steps(self, project_root):
         """Test training and validation steps with existing data."""

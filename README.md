@@ -32,18 +32,18 @@ At a high level:
 
 **Goal:** Measure how useful BUY/SELL signals are over a chosen evaluation horizon (e.g. the next 7–30 days).
 
-- **BUY Precision**  
-  Of all BUY alerts generated, how many were actually good buys?  
+- **BUY Precision**
+  Of all BUY alerts generated, how many were actually good buys?
   A BUY is considered “good” if the price increases by at least a configurable percentage within the evaluation horizon.
 
-- **BUY Recall**  
+- **BUY Recall**
   Of all situations where the card later became a good buy, how many times did the system issue a BUY alert?
 
-- **SELL Precision**  
-  Of all SELL alerts generated, how many were actually good sells?  
+- **SELL Precision**
+  Of all SELL alerts generated, how many were actually good sells?
   A SELL is considered “good” if the price drops by at least a configurable percentage within the evaluation horizon.
 
-- **SELL Recall**  
+- **SELL Recall**
   Of all situations where the card later dropped significantly, how many times did the system issue a SELL alert?
 
 These KPIs are computed offline on historical data (backtesting).
@@ -53,20 +53,20 @@ These KPIs are computed offline on historical data (backtesting).
 
 **Goal:** Measure how close the model’s fair value is to the observed market prices.
 
-- **MAPE (Mean Absolute Percentage Error)**  
+- **MAPE (Mean Absolute Percentage Error)**
   Average percentage error between predicted fair value and actual market price, reported:
   - Globally (all cards),
   - Per card,
   - Per card category (grail, chase, meta, personal).
 
-- **RMSE (Root Mean Squared Error)**  
+- **RMSE (Root Mean Squared Error)**
   Average squared error in absolute price units, useful for comparing models.
 
-- **Coverage / Signal Rate**  
+- **Coverage / Signal Rate**
   Percentage of (card, day) pairs for which:
   - A valid fair value is produced,
   - A BUY or SELL alert is emitted (vs HOLD).
-  
+
   This helps avoid a model that “never says anything”.
 
 
@@ -74,12 +74,12 @@ These KPIs are computed offline on historical data (backtesting).
 
 **Goal:** Avoid noisy, flip-flopping signals that confuse the user.
 
-- **Signal Stability**  
-  Fraction of days where the signal changes for a given card (e.g. BUY → SELL → BUY).  
+- **Signal Stability**
+  Fraction of days where the signal changes for a given card (e.g. BUY → SELL → BUY).
   Lower is generally better, as long as alert quality remains high.
 
-- **Alert Distribution**  
-  Ratio of BUY / SELL / HOLD over time.  
+- **Alert Distribution**
+  Ratio of BUY / SELL / HOLD over time.
   Useful to see if the system is overly biased toward one type of signal.
 
 
@@ -87,16 +87,16 @@ These KPIs are computed offline on historical data (backtesting).
 
 These KPIs are more about the “platform health” than pure model performance:
 
-- **API Latency (p95)**  
+- **API Latency (p95)**
   95th percentile response time for the `/fair_price` endpoint.
 
-- **API Error Rate**  
+- **API Error Rate**
   Percentage of failed requests (5xx) over time.
 
-- **Model Version Adoption**  
+- **Model Version Adoption**
   Which model version is currently serving traffic, and how often it is updated.
 
-- **Drift Indicators** (later phases)  
+- **Drift Indicators** (later phases)
   - Data drift on input features (price distributions, volatility, etc.).
   - Prediction drift (distribution of fair values and deviations over time).
   - Number of drift events that trigger retraining per month.
@@ -165,10 +165,100 @@ docker-compose run --rm training python -m pokewatch.models.train_baseline
 - **MLflow UI**: http://127.0.0.1:5001
 - **MinIO Console**: http://127.0.0.1:9001 (minioadmin/minioadmin)
 
-For detailed MLOps workflows, see [MLOPS.md](MLOPS.md).
+For detailed MLOps workflows, see [docs/technical-guides/MLOPS.md](docs/technical-guides/MLOPS.md).
+
+### Pipeline Orchestration (ZenML)
+
+PokeWatch uses ZenML for ML pipeline orchestration with experiment tracking.
+
+#### Setup ZenML (First Time)
+```bash
+# Run setup script
+bash scripts/setup_zenml.sh
+
+# Verify installation
+zenml stack list
+```
+
+#### Run Pipeline
+```bash
+# Run complete ML pipeline
+python -m pipelines.ml_pipeline
+
+# View pipeline runs
+zenml up
+```
+
+#### Schedule Pipeline
+```bash
+# Install daily cron job (3:00 AM)
+bash scripts/schedule_pipeline.sh install
+
+# Check schedule status
+bash scripts/schedule_pipeline.sh status
+
+# Remove schedule
+bash scripts/schedule_pipeline.sh remove
+```
+
+For detailed pipeline usage, see [docs/zenml_guide.md](docs/zenml_guide.md).
+
+### Kubernetes Deployment
+
+PokeWatch can be deployed to Kubernetes for scalability and high availability.
+
+#### Quick Start
+```bash
+# Deploy to Minikube
+./scripts/deploy_k8s.sh
+```
+
+#### Manual Deployment
+```bash
+# Start Minikube
+minikube start --driver=docker --memory=4096 --cpus=2
+
+# Build Docker image
+eval $(minikube docker-env)
+docker build -t pokewatch-api:latest -f docker/api.Dockerfile .
+
+# Deploy to Kubernetes
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/api-deployment.yaml
+kubectl apply -f k8s/api-service.yaml
+
+# Enable auto-scaling (optional)
+kubectl apply -f k8s/hpa.yaml
+```
+
+#### Access the API
+```bash
+# Port-forward
+kubectl port-forward -n pokewatch svc/pokewatch-api 8000:8000
+
+# Or use Minikube service
+minikube service pokewatch-api -n pokewatch
+```
+
+#### Monitoring and Management
+```bash
+# Monitor deployment
+./scripts/monitor_k8s.sh
+
+# Scale manually
+kubectl scale deployment/pokewatch-api --replicas=5 -n pokewatch
+
+# View logs
+kubectl logs -l app=pokewatch-api -n pokewatch
+
+# Verify deployment
+./scripts/verify_k8s.sh
+```
+
+For detailed Kubernetes usage, see [docs/kubernetes_guide.md](docs/kubernetes_guide.md).
 
 
-## Project structure 
+## Project structure
 
 ```
 pokewatch/
@@ -191,9 +281,13 @@ pokewatch/
 │   ├── settings.yaml           # Global config (API URL, paths, thresholds, etc.)
 │   └── logging.yaml            # Python logging configuration
 ├── docs/
-│   ├── business_goal.md        # Objectives & KPIs
-│   ├── architecture.md         # System overview
-│   └── api_contract.md         # /fair_price specification
+│   ├── README.md               # Documentation index
+│   ├── getting-started/        # Quick start guides
+│   ├── architecture/           # Architecture & design docs
+│   ├── implementation-reports/ # Progress & completion reports
+│   ├── planning/              # Development plans & roadmaps
+│   ├── deployment/            # Deployment guides
+│   └── technical-guides/      # Technical documentation
 ├── src/
 │   └── pokewatch/
 │       ├── __init__.py

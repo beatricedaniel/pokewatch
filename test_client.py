@@ -9,7 +9,7 @@ from pokewatch.data import PokemonPriceTrackerClient
 def main():
     # Load settings
     settings = get_settings()
-    
+
     # Create client
     client = PokemonPriceTrackerClient(
         api_key=settings.pokemon_price_api_key,
@@ -17,11 +17,11 @@ def main():
         timeout=settings.api.timeout_seconds,
         default_language=settings.api.language,
     )
-    
+
     print("✓ Client initialized successfully")
     print(f"  Base URL: {client.base_url}")
     print(f"  Default language: {client.default_language}")
-    
+
     # Test 1: Get sets (using language from config)
     print(f"\n--- Test 1: Get sets (language: {settings.api.language}) ---")
     try:
@@ -32,7 +32,7 @@ def main():
             print(f"  Example: {first_set.get('name', 'N/A')} (ID: {first_set.get('_id', 'N/A')})")
     except Exception as e:
         print(f"✗ Error: {e}")
-    
+
     # Test 2: Get cards from the set defined in cards.yaml
     print("\n--- Test 2: Get cards from set defined in cards.yaml ---")
     from pokewatch.data.collectors.daily_price_collector import load_cards_config
@@ -59,7 +59,7 @@ def main():
                 print(f"  Price history entries: {len(first_card['priceHistory'])}")
     except Exception as e:
         print(f"✗ Error: {e}")
-    
+
     # Close client
     client.close()
     print("\n✓ Client closed successfully")

@@ -12,9 +12,13 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from pokewatch.api import dependencies
+from pokewatch.api.auth import get_api_key_auth
+from pokewatch.api.middleware import setup_middleware
+from pokewatch.api.rate_limiter import get_rate_limiter
 from pokewatch.api.schemas import FairPriceRequest, FairPriceResponse, HealthResponse
 from pokewatch.config import get_settings
 from pokewatch.core.decision_rules import DecisionConfig, compute_signal
@@ -30,17 +34,17 @@ def setup_logging():
     project_root = Path(__file__).parent.parent.parent.parent
     log_dir = project_root / "logs"
     log_file = log_dir / "logs.txt"
-    
+
     # Create logs directory if it doesn't exist
     log_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Configure logging format
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
-    
+
     # Get log level from environment or default to INFO
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-    
+
     # Configure root logger
     logging.basicConfig(
         level=getattr(logging, log_level, logging.INFO),
@@ -53,7 +57,7 @@ def setup_logging():
             logging.FileHandler(log_file, mode="a", encoding="utf-8"),
         ],
     )
-    
+
     logger.info(f"Logging configured. Log file: {log_file}")
 
 
@@ -66,7 +70,7 @@ async def lifespan(app: FastAPI):
     """
     # Setup logging first
     setup_logging()
-    
+
     # Startup
     logger.info("Starting PokeWatch API...")
     try:
@@ -106,6 +110,39 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Configure CORS
+settings = get_settings()
+cors_enabled = os.getenv("CORS_ENABLED", "true").lower() == "true"
+if cors_enabled:
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["X-API-Key", "Content-Type", "X-Request-ID"],
+        expose_headers=[
+            "X-Request-ID",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+        ],
+    )
+    logger.info(f"CORS enabled for origins: {allowed_origins}")
+
+# Setup security and logging middleware
+setup_middleware(
+    app,
+    config={
+        "max_request_size": 10 * 1024 * 1024,  # 10MB
+        "enable_csp": False,  # Disabled for API
+    },
+)
+
+# Initialize authentication and rate limiting
+api_key_auth = get_api_key_auth()
+rate_limiter = get_rate_limiter(use_redis=bool(os.getenv("REDIS_URL")))
+
 
 @app.get("/health", response_model=HealthResponse)
 def health():
@@ -130,6 +167,8 @@ def fair_price(
     payload: FairPriceRequest,
     model: Annotated[BaselineFairPriceModel, Depends(dependencies.get_model)],
     decision_cfg: Annotated[DecisionConfig, Depends(dependencies.get_decision_config)],
+    api_key: Annotated[str, Depends(api_key_auth)],
+    _rate_limit: Annotated[None, Depends(rate_limiter)],
 ):
     """
     Predict fair price and compute trading signal for a card.
@@ -192,6 +231,8 @@ def fair_price(
 @app.get("/cards")
 def list_cards(
     model: Annotated[BaselineFairPriceModel, Depends(dependencies.get_model)],
+    api_key: Annotated[str, Depends(api_key_auth)],
+    _rate_limit: Annotated[None, Depends(rate_limiter)],
 ):
     """
     List all available card IDs.
@@ -211,4 +252,3 @@ async def global_exception_handler(request, exc):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"},
     )
-

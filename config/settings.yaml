@@ -3,6 +3,23 @@ api:
   timeout_seconds: 10
   language: "japanese"    # IMPORTANT: JP cards only
 
+  # Security settings (Week 2)
+  auth:
+    enabled: true
+    require_api_key: true  # Set to false for testing without keys
+
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10  # Allow short bursts above the rate limit
+
+  security:
+    cors_enabled: true
+    allowed_origins:
+      - "*"  # Change to specific domains in production
+    max_request_size_mb: 10
+    enable_csp: false  # Content Security Policy (disable for API)
+
 data:
   raw_dir: "data/raw"
   processed_dir: "data/processed"
@@ -10,3 +27,24 @@ data:
 model:
   default_buy_threshold_pct: 0.10   # -10% (undervalued)
   default_sell_threshold_pct: 0.15  # +15% (overpriced)
+
+# Performance settings (Week 2, Day 4)
+cache:
+  enabled: true
+  backend: "redis"  # or "memory"
+  redis_url: "${REDIS_URL:-redis://localhost:6379}"
+  ttl_seconds: 3600  # 1 hour
+
+performance:
+  batch_size: 50
+  model_preload: true
+  connection_pool_size: 10
+
+# Pipeline settings (Week 2, Day 5)
+pipeline:
+  schedule:
+    enabled: true
+    cron: "0 3 * * *"  # 3 AM daily
+  orchestrator: "zenml"  # or "simple"
+  retry_on_failure: true
+  max_retries: 3

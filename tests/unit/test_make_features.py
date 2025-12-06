@@ -11,7 +11,6 @@ import pandas as pd
 from pokewatch.data.preprocessing.make_features import (
     build_features,
     ensure_consistent_schema,
-    load_raw_files,
 )
 
 
@@ -26,35 +25,39 @@ class TestBuildFeatures:
         data = []
         # Card 1: prices [100, 105, 110, 115]
         for i in range(4):
-            data.append({
-                "card_id": "card_1",
-                "card_number": "001/165",
-                "card_name": "Card 1",
-                "set_id": "test_set",
-                "set_name": "Test Set",
-                "date": base_date + timedelta(days=i),
-                "market_price": 100.0 + (i * 5.0),
-                "category": "grail",
-                "rarity": "Rare",
-                "tcgplayer_id": "123",
-                "source": "test",
-            })
+            data.append(
+                {
+                    "card_id": "card_1",
+                    "card_number": "001/165",
+                    "card_name": "Card 1",
+                    "set_id": "test_set",
+                    "set_name": "Test Set",
+                    "date": base_date + timedelta(days=i),
+                    "market_price": 100.0 + (i * 5.0),
+                    "category": "grail",
+                    "rarity": "Rare",
+                    "tcgplayer_id": "123",
+                    "source": "test",
+                }
+            )
 
         # Card 2: prices [50, 55, 60, 65]
         for i in range(4):
-            data.append({
-                "card_id": "card_2",
-                "card_number": "002/165",
-                "card_name": "Card 2",
-                "set_id": "test_set",
-                "set_name": "Test Set",
-                "date": base_date + timedelta(days=i),
-                "market_price": 50.0 + (i * 5.0),
-                "category": "chase",
-                "rarity": "Common",
-                "tcgplayer_id": "456",
-                "source": "test",
-            })
+            data.append(
+                {
+                    "card_id": "card_2",
+                    "card_number": "002/165",
+                    "card_name": "Card 2",
+                    "set_id": "test_set",
+                    "set_name": "Test Set",
+                    "date": base_date + timedelta(days=i),
+                    "market_price": 50.0 + (i * 5.0),
+                    "category": "chase",
+                    "rarity": "Common",
+                    "tcgplayer_id": "456",
+                    "source": "test",
+                }
+            )
 
         df = pd.DataFrame(data)
 
@@ -95,28 +98,36 @@ class TestBuildFeatures:
 
         # Fair value baseline: should use rolling_mean_3 when available
         assert card_1_df.iloc[0]["fair_value_baseline"] == 100.0  # rolling_mean_3 = 100
-        assert card_1_df.iloc[1]["fair_value_baseline"] == pytest.approx(102.5, abs=0.01)  # rolling_mean_3
-        assert card_1_df.iloc[2]["fair_value_baseline"] == pytest.approx(105.0, abs=0.01)  # rolling_mean_3
-        assert card_1_df.iloc[3]["fair_value_baseline"] == pytest.approx(110.0, abs=0.01)  # rolling_mean_3
+        assert card_1_df.iloc[1]["fair_value_baseline"] == pytest.approx(
+            102.5, abs=0.01
+        )  # rolling_mean_3
+        assert card_1_df.iloc[2]["fair_value_baseline"] == pytest.approx(
+            105.0, abs=0.01
+        )  # rolling_mean_3
+        assert card_1_df.iloc[3]["fair_value_baseline"] == pytest.approx(
+            110.0, abs=0.01
+        )  # rolling_mean_3
 
     def test_build_features_fair_value_fallback(self):
         """Test that fair_value_baseline falls back to market_price when rolling_mean_3 is NaN."""
         # Create test data with only 1 date (rolling_mean_3 will be NaN)
         base_date = date(2025, 11, 20)
 
-        data = [{
-            "card_id": "card_1",
-            "card_number": "001/165",
-            "card_name": "Card 1",
-            "set_id": "test_set",
-            "set_name": "Test Set",
-            "date": base_date,
-            "market_price": 100.0,
-            "category": "grail",
-            "rarity": "Rare",
-            "tcgplayer_id": "123",
-            "source": "test",
-        }]
+        data = [
+            {
+                "card_id": "card_1",
+                "card_number": "001/165",
+                "card_name": "Card 1",
+                "set_id": "test_set",
+                "set_name": "Test Set",
+                "date": base_date,
+                "market_price": 100.0,
+                "category": "grail",
+                "rarity": "Rare",
+                "tcgplayer_id": "123",
+                "source": "test",
+            }
+        ]
 
         df = pd.DataFrame(data)
         result_df = build_features(df)
@@ -133,19 +144,21 @@ class TestBuildFeatures:
         # Create 5 dates for one card
         data = []
         for i in range(5):
-            data.append({
-                "card_id": "card_1",
-                "card_number": "001/165",
-                "card_name": "Card 1",
-                "set_id": "test_set",
-                "set_name": "Test Set",
-                "date": base_date + timedelta(days=i),
-                "market_price": 100.0 + (i * 10.0),  # [100, 110, 120, 130, 140]
-                "category": "grail",
-                "rarity": "Rare",
-                "tcgplayer_id": "123",
-                "source": "test",
-            })
+            data.append(
+                {
+                    "card_id": "card_1",
+                    "card_number": "001/165",
+                    "card_name": "Card 1",
+                    "set_id": "test_set",
+                    "set_name": "Test Set",
+                    "date": base_date + timedelta(days=i),
+                    "market_price": 100.0 + (i * 10.0),  # [100, 110, 120, 130, 140]
+                    "category": "grail",
+                    "rarity": "Rare",
+                    "tcgplayer_id": "123",
+                    "source": "test",
+                }
+            )
 
         df = pd.DataFrame(data)
         result_df = build_features(df)
@@ -166,35 +179,39 @@ class TestBuildFeatures:
         data = []
         # Card 1: [10, 20]
         for i, price in enumerate([10.0, 20.0]):
-            data.append({
-                "card_id": "card_1",
-                "card_number": "001/165",
-                "card_name": "Card 1",
-                "set_id": "test_set",
-                "set_name": "Test Set",
-                "date": base_date + timedelta(days=i),
-                "market_price": price,
-                "category": "grail",
-                "rarity": "Rare",
-                "tcgplayer_id": "123",
-                "source": "test",
-            })
+            data.append(
+                {
+                    "card_id": "card_1",
+                    "card_number": "001/165",
+                    "card_name": "Card 1",
+                    "set_id": "test_set",
+                    "set_name": "Test Set",
+                    "date": base_date + timedelta(days=i),
+                    "market_price": price,
+                    "category": "grail",
+                    "rarity": "Rare",
+                    "tcgplayer_id": "123",
+                    "source": "test",
+                }
+            )
 
         # Card 2: [100, 200]
         for i, price in enumerate([100.0, 200.0]):
-            data.append({
-                "card_id": "card_2",
-                "card_number": "002/165",
-                "card_name": "Card 2",
-                "set_id": "test_set",
-                "set_name": "Test Set",
-                "date": base_date + timedelta(days=i),
-                "market_price": price,
-                "category": "chase",
-                "rarity": "Common",
-                "tcgplayer_id": "456",
-                "source": "test",
-            })
+            data.append(
+                {
+                    "card_id": "card_2",
+                    "card_number": "002/165",
+                    "card_name": "Card 2",
+                    "set_id": "test_set",
+                    "set_name": "Test Set",
+                    "date": base_date + timedelta(days=i),
+                    "market_price": price,
+                    "category": "chase",
+                    "rarity": "Common",
+                    "tcgplayer_id": "456",
+                    "source": "test",
+                }
+            )
 
         df = pd.DataFrame(data)
         result_df = build_features(df)
@@ -219,19 +236,21 @@ class TestEnsureConsistentSchema:
         """Test that date is converted to datetime.date."""
         base_date = date(2025, 11, 20)
 
-        data = [{
-            "card_id": "card_1",
-            "card_number": "001/165",
-            "card_name": "Card 1",
-            "set_id": "test_set",
-            "set_name": "Test Set",
-            "date": pd.Timestamp(base_date),  # datetime64
-            "market_price": 100.0,
-            "category": "grail",
-            "rarity": "Rare",
-            "tcgplayer_id": "123",
-            "source": "test",
-        }]
+        data = [
+            {
+                "card_id": "card_1",
+                "card_number": "001/165",
+                "card_name": "Card 1",
+                "set_id": "test_set",
+                "set_name": "Test Set",
+                "date": pd.Timestamp(base_date),  # datetime64
+                "market_price": 100.0,
+                "category": "grail",
+                "rarity": "Rare",
+                "tcgplayer_id": "123",
+                "source": "test",
+            }
+        ]
 
         df = pd.DataFrame(data)
         result_df = ensure_consistent_schema(df)
@@ -247,19 +266,21 @@ class TestEnsureConsistentSchema:
         data = []
         # Create unsorted data
         for card_id, day_offset in [("card_2", 2), ("card_1", 1), ("card_1", 0), ("card_2", 0)]:
-            data.append({
-                "card_id": card_id,
-                "card_number": "001/165",
-                "card_name": "Card",
-                "set_id": "test_set",
-                "set_name": "Test Set",
-                "date": base_date + timedelta(days=day_offset),
-                "market_price": 100.0,
-                "category": "grail",
-                "rarity": "Rare",
-                "tcgplayer_id": "123",
-                "source": "test",
-            })
+            data.append(
+                {
+                    "card_id": card_id,
+                    "card_number": "001/165",
+                    "card_name": "Card",
+                    "set_id": "test_set",
+                    "set_name": "Test Set",
+                    "date": base_date + timedelta(days=day_offset),
+                    "market_price": 100.0,
+                    "category": "grail",
+                    "rarity": "Rare",
+                    "tcgplayer_id": "123",
+                    "source": "test",
+                }
+            )
 
         df = pd.DataFrame(data)
         result_df = ensure_consistent_schema(df)
@@ -273,4 +294,3 @@ class TestEnsureConsistentSchema:
         assert result_df.iloc[2]["date"] == base_date
         assert result_df.iloc[3]["card_id"] == "card_2"
         assert result_df.iloc[3]["date"] == base_date + timedelta(days=2)
-

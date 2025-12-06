@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pokewatch-api
+  namespace: pokewatch
+  labels:
+    app: pokewatch-api
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pokewatch-api
+  template:
+    metadata:
+      labels:
+        app: pokewatch-api
+        version: v1
+    spec:
+      containers:
+      - name: api
+        image: pokewatch-api:latest
+        imagePullPolicy: Never  # Use local image from Minikube
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: POKEMON_PRICE_API_KEY
+          value: "your-api-key-here"  # TODO: Replace with Secret
+        - name: ENVIRONMENT
+          value: "production"
+        - name: AUTH_ENABLED
+          value: "false"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+# ConfigMap for configuration (optional)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pokewatch-config
+  namespace: pokewatch
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"

@@ -57,11 +57,11 @@ touch "$PROJECT_ROOT/logs/logs.txt"
 build_images() {
     echo -e "${YELLOW}Building Docker images...${NC}"
     cd "$PROJECT_ROOT"
-    
+
     # Build API image
     echo -e "${YELLOW}Building API image...${NC}"
     docker build -f docker/api.Dockerfile -t pokewatch-api:latest .
-    
+
     echo -e "${GREEN}✓ Images built successfully${NC}"
     echo ""
 }
@@ -70,9 +70,9 @@ build_images() {
 run_api() {
     echo -e "${YELLOW}Starting API service...${NC}"
     cd "$PROJECT_ROOT"
-    
+
     $DOCKER_COMPOSE up -d api
-    
+
     echo -e "${GREEN}✓ API service started${NC}"
     echo -e "${YELLOW}API available at: http://localhost:8000${NC}"
     echo -e "${YELLOW}API docs at: http://localhost:8000/docs${NC}"
@@ -85,11 +85,11 @@ run_api() {
 run_tests() {
     echo -e "${YELLOW}Running tests...${NC}"
     cd "$PROJECT_ROOT"
-    
+
     # Start API first (required for integration tests)
     echo -e "${YELLOW}Starting API service for tests...${NC}"
     $DOCKER_COMPOSE up -d api
-    
+
     # Wait for API to be ready
     echo -e "${YELLOW}Waiting for API to be ready...${NC}"
     timeout=60
@@ -105,22 +105,22 @@ run_tests() {
     done
     echo ""
     echo -e "${GREEN}✓ API is ready${NC}"
-    
+
     # Run tests
     echo -e "${YELLOW}Running test suite...${NC}"
     $DOCKER_COMPOSE --profile test run --rm tests 2>&1 | tee "$PROJECT_ROOT/logs/logs.txt"
-    
+
     test_exit_code=${PIPESTATUS[0]}
-    
+
     if [ $test_exit_code -eq 0 ]; then
         echo -e "${GREEN}✓ All tests passed${NC}"
     else
         echo -e "${RED}✗ Some tests failed (exit code: $test_exit_code)${NC}"
     fi
-    
+
     echo ""
     echo -e "${YELLOW}Test logs saved to: logs/logs.txt${NC}"
-    
+
     return $test_exit_code
 }
 
@@ -198,4 +198,3 @@ case "${1:-help}" in
         exit 1
         ;;
 esac
-

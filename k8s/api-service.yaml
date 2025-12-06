@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pokewatch-api
+  namespace: pokewatch
+  labels:
+    app: pokewatch-api
+spec:
+  type: NodePort
+  selector:
+    app: pokewatch-api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8000        # Internal cluster port
+    targetPort: 8000  # Container port
+    nodePort: 30080   # External access port (30000-32767 range)
+  sessionAffinity: None

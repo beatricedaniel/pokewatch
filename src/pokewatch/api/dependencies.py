@@ -4,9 +4,7 @@ FastAPI dependencies for PokeWatch API.
 Provides dependency injection for model and configuration.
 """
 
-from typing import Annotated
-
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 
 from pokewatch.config import get_settings
 from pokewatch.core.decision_rules import DecisionConfig
@@ -71,4 +69,3 @@ def get_model_status() -> tuple[bool, int | None]:
     if _baseline_model is None:
         return (False, None)
     return (True, len(_baseline_model.get_all_card_ids()))
-

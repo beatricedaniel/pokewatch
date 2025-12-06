@@ -59,11 +59,10 @@ def compute_signal(
 
     # Determine signal
     if deviation_pct <= -cfg.buy_threshold_pct:
-        signal = "BUY"
+        signal: Literal["BUY", "SELL", "HOLD"] = "BUY"
     elif deviation_pct >= cfg.sell_threshold_pct:
         signal = "SELL"
     else:
         signal = "HOLD"
 
     return (signal, deviation_pct)
-

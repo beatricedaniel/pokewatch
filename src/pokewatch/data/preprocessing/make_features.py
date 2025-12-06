@@ -8,13 +8,12 @@ Usage:
 """
 
 import logging
-from datetime import date
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
-from pokewatch.config import get_settings, get_data_path
+from pokewatch.config import get_data_path
 from pokewatch.data.collectors.daily_price_collector import load_cards_config
 
 logger = logging.getLogger(__name__)
@@ -45,9 +44,7 @@ def load_raw_files(raw_dir: Path, set_name: str) -> pd.DataFrame:
     files = list(raw_dir.glob(pattern))
 
     if not files:
-        raise FileNotFoundError(
-            f"No raw files found matching pattern: {pattern} in {raw_dir}"
-        )
+        raise FileNotFoundError(f"No raw files found matching pattern: {pattern} in {raw_dir}")
 
     logger.info(f"Found {len(files)} raw files matching pattern: {pattern}")
 
@@ -155,22 +152,16 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         card_df["lag_1"] = card_df["market_price"].shift(1)
 
         # rolling_mean_3: 3-day rolling mean
-        card_df["rolling_mean_3"] = (
-            card_df["market_price"].rolling(window=3, min_periods=1).mean()
-        )
+        card_df["rolling_mean_3"] = card_df["market_price"].rolling(window=3, min_periods=1).mean()
 
         # rolling_mean_5: 5-day rolling mean (if enough history)
-        card_df["rolling_mean_5"] = (
-            card_df["market_price"].rolling(window=5, min_periods=1).mean()
-        )
+        card_df["rolling_mean_5"] = card_df["market_price"].rolling(window=5, min_periods=1).mean()
 
         # price_return_1d: (price_t / price_{t-1} - 1)
         card_df["price_return_1d"] = card_df["market_price"].pct_change()
 
         # fair_value_baseline: rolling_mean_3 if available, else market_price
-        card_df["fair_value_baseline"] = card_df["rolling_mean_3"].fillna(
-            card_df["market_price"]
-        )
+        card_df["fair_value_baseline"] = card_df["rolling_mean_3"].fillna(card_df["market_price"])
 
         feature_dfs.append(card_df)
 
@@ -181,9 +172,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     result_df = result_df.sort_values(["card_id", "date"]).reset_index(drop=True)
 
     logger.info(f"Features built. Shape: {result_df.shape}")
-    logger.debug(
-        f"Feature columns: {[col for col in result_df.columns if col not in df.columns]}"
-    )
+    logger.debug(f"Feature columns: {[col for col in result_df.columns if col not in df.columns]}")
 
     return result_df
 
@@ -205,9 +194,6 @@ def process_raw_data(
     Raises:
         FileNotFoundError: If no raw files are found or cards.yaml doesn't exist
     """
-    # Load settings
-    settings = get_settings()
-
     # Set output directory
     if output_dir is None:
         output_dir = get_data_path("processed")
@@ -264,4 +250,3 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
-

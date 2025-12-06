@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 
 class APIConfig(BaseModel):
     """API configuration."""
+
     base_url: str
     timeout_seconds: int = 10
     language: str = "japanese"
@@ -32,19 +33,21 @@ class APIConfig(BaseModel):
 
 class DataConfig(BaseModel):
     """Data paths configuration."""
+
     raw_dir: str
     processed_dir: str
 
 
 class ModelConfig(BaseModel):
     """Model and decision rules configuration."""
+
     default_buy_threshold_pct: float = Field(
         default=0.10,
-        description="Buy threshold: market price is X% below fair value (e.g., 0.10 = -10%)"
+        description="Buy threshold: market price is X% below fair value (e.g., 0.10 = -10%)",
     )
     default_sell_threshold_pct: float = Field(
         default=0.15,
-        description="Sell threshold: market price is X% above fair value (e.g., 0.15 = +15%)"
+        description="Sell threshold: market price is X% above fair value (e.g., 0.15 = +15%)",
     )
 
 
@@ -61,18 +64,14 @@ class Settings(BaseModel):
     model: ModelConfig
 
     # Environment variables
-    pokemon_price_api_key: str = Field(
-        ...,
-        description="API key for Pokemon Price Tracker API"
-    )
-    env: str = Field(
-        default="dev",
-        description="Environment: dev, test, or prod"
-    )
+    pokemon_price_api_key: str = Field(..., description="API key for Pokemon Price Tracker API")
+    env: str = Field(default="dev", description="Environment: dev, test, or prod")
 
     # Computed paths (relative to project root)
     project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent.parent)
-    config_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent.parent / "config")
+    config_dir: Path = Field(
+        default_factory=lambda: Path(__file__).parent.parent.parent.parent / "config"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -170,7 +169,7 @@ def get_settings() -> Settings:
         "env": env,
     }
 
-    return Settings(**settings_dict)
+    return Settings(**settings_dict)  # type: ignore[arg-type]
 
 
 def get_data_path(subdir: str = "") -> Path:

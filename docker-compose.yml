@@ -122,6 +122,28 @@ services:
       - mlflow
 
   # ========================================
+  # REDIS CACHE (Week 2, Day 4 - Optional for future scaling)
+  # To use: docker-compose --profile production up
+  # ========================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: pokewatch-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # ========================================
   # DATA COLLECTION & TRAINING SERVICES
   # ========================================
 
@@ -207,3 +229,7 @@ services:
     profiles:
       - training
 
+# Named volumes
+volumes:
+  redis_data:
+    driver: local

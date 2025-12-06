@@ -1,0 +1,65 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: 'pip'
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        cd pokewatch
+        python -m uv venv
+        source .venv/bin/activate
+        python -m uv pip install -e ".[dev]"
+
+    - name: Run ruff linting
+      run: |
+        cd pokewatch
+        source .venv/bin/activate
+        ruff check src/ tests/ pipelines/ --output-format=github
+
+    - name: Run black formatting check
+      run: |
+        cd pokewatch
+        source .venv/bin/activate
+        black --check src/ tests/ pipelines/
+
+    - name: Run mypy type checking
+      run: |
+        cd pokewatch
+        source .venv/bin/activate
+        mypy src/pokewatch --ignore-missing-imports
+      continue-on-error: true
+
+    - name: Check import order with ruff
+      run: |
+        cd pokewatch
+        source .venv/bin/activate
+        ruff check src/ tests/ pipelines/ --select I --diff
+
+    - name: Security check with bandit
+      run: |
+        cd pokewatch
+        source .venv/bin/activate
+        pip install bandit
+        bandit -r src/pokewatch -ll
+      continue-on-error: true
