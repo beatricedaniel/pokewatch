@@ -73,11 +73,11 @@ scheduler:
 workers:
   replicas: 0
 
-# Airflow image
+# Airflow image - use 2.10.x which has better K8s executor support
 images:
   airflow:
     repository: apache/airflow
-    tag: "2.8.1-python3.11"
+    tag: "2.10.2-python3.11"
     pullPolicy: IfNotPresent
 
 # ServiceAccount with permissions to create pods in pokewatch namespace
@@ -108,4 +108,12 @@ pgbouncer:
   enabled: false
 
 triggerer:
+  enabled: false
+
+# Disable API server (not available in Airflow 2.x stable)
+apiServer:
+  enabled: false
+
+# Disable dag processor standalone (use scheduler's built-in processor)
+dagProcessor:
   enabled: false
