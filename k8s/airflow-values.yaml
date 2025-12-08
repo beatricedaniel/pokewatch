@@ -47,10 +47,22 @@ webserver:
   resources:
     requests:
       cpu: "200m"
-      memory: "256Mi"
-    limits:
-      cpu: "500m"
       memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  # Increase startup probe timeout - webserver takes time to start
+  startupProbe:
+    failureThreshold: 30
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 30
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 30
   service:
     type: NodePort
     ports:
@@ -66,8 +78,16 @@ scheduler:
       cpu: "200m"
       memory: "512Mi"
     limits:
-      cpu: "500m"
-      memory: "1Gi"
+      cpu: "1000m"
+      memory: "1.5Gi"
+  # Increase probe timeouts
+  startupProbe:
+    failureThreshold: 30
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 30
 
 # No workers needed - KubernetesExecutor creates pods dynamically
 workers:
