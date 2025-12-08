@@ -110,10 +110,5 @@ pgbouncer:
 triggerer:
   enabled: false
 
-# Disable API server (not available in Airflow 2.x stable)
-apiServer:
-  enabled: false
-
-# Disable dag processor standalone (use scheduler's built-in processor)
-dagProcessor:
-  enabled: false
+# Note: apiServer and dagProcessor are controlled by the chart version
+# The default Helm chart handles these automatically
