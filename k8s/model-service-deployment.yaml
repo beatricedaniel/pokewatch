@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-service
+  namespace: pokewatch
+  labels:
+    app: model-service
+    tier: ml
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: model-service
+  template:
+    metadata:
+      labels:
+        app: model-service
+        tier: ml
+    spec:
+      containers:
+      - name: model-service
+        image: pokewatch-model:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+
+        # Environment variables from secrets
+        env:
+        - name: POKEMON_PRICE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ml-secrets
+              key: POKEMON_PRICE_API_KEY
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: ml-secrets
+              key: MLFLOW_TRACKING_URI
+        - name: DAGSHUB_USER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ml-secrets
+              key: DAGSHUB_USER_TOKEN
+        - name: MLFLOW_TRACKING_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ml-secrets
+              key: MLFLOW_TRACKING_USERNAME
+        - name: MLFLOW_TRACKING_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ml-secrets
+              key: MLFLOW_TRACKING_PASSWORD
+
+        # Health probes (increased delays and timeouts for FastAPI service)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 35
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+
+        # Resource limits
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+
+        # Volume mounts for BentoML temporary/cache files
+        # Note: Data is baked into the image at /app/data/processed
+        volumeMounts:
+        - name: bentoml-tmp
+          mountPath: /tmp
+        - name: bentoml-home
+          mountPath: /root/.bentoml
+
+      volumes:
+      - name: bentoml-tmp
+        emptyDir: {}
+      - name: bentoml-home
+        emptyDir: {}
