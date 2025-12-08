@@ -39,6 +39,7 @@ dags:
     repo: "https://github.com/beatricedaniel/pokewatch.git"
     branch: "orch-deploy"
     subPath: "airflow/dags"
+    depth: 1
     wait: 60
 
 # Webserver configuration
