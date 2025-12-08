@@ -1,0 +1,135 @@
+# Airflow Helm Chart Values
+# Usage: helm install airflow apache-airflow/airflow -f airflow-values.yaml --namespace airflow
+#
+# IMPORTANT: Update the git repo URL in dags.gitSync section before deploying
+
+# Use KubernetesExecutor - creates pods dynamically for each task
+executor: "KubernetesExecutor"
+
+# Airflow configuration
+config:
+  core:
+    dags_folder: "/opt/airflow/dags"
+    load_examples: "False"
+  webserver:
+    expose_config: "True"
+  kubernetes_executor:
+    # Pipeline pods run in pokewatch namespace (where secrets exist)
+    namespace: "pokewatch"
+    # Clean up pods after task completion
+    delete_worker_pods: "True"
+    delete_worker_pods_on_failure: "False"
+
+# PostgreSQL database
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "15"
+    pullPolicy: IfNotPresent
+  persistence:
+    enabled: true
+    size: 5Gi
+
+# DAGs from Git repository (auto-sync)
+dags:
+  gitSync:
+    enabled: true
+    # IMPORTANT: Replace with your GitHub repo URL
+    repo: "https://github.com/beatricedaniel/pokewatch.git"
+    branch: "main"
+    subPath: "repo/airflow/dags"
+    depth: 1
+    wait: 60
+
+# Webserver configuration
+webserver:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  # Increase startup probe timeout - webserver takes time to start
+  startupProbe:
+    failureThreshold: 30
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 30
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 30
+  service:
+    type: NodePort
+    ports:
+      - name: http
+        port: 8080
+        nodePort: 30081
+
+# Scheduler configuration
+scheduler:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1.5Gi"
+  # Increase probe timeouts
+  startupProbe:
+    failureThreshold: 30
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 30
+
+# No workers needed - KubernetesExecutor creates pods dynamically
+workers:
+  replicas: 0
+
+# Airflow image - use 2.10.x which has better K8s executor support
+images:
+  airflow:
+    repository: apache/airflow
+    tag: "2.10.2-python3.11"
+    pullPolicy: IfNotPresent
+
+# ServiceAccount with permissions to create pods in pokewatch namespace
+serviceAccount:
+  create: true
+  name: airflow
+
+# RBAC - needed for KubernetesExecutor to create pods
+rbac:
+  create: true
+
+# Security settings
+securityContext:
+  runAsUser: 50000
+  fsGroup: 50000
+
+# Disable unused components
+redis:
+  enabled: false
+
+flower:
+  enabled: false
+
+statsd:
+  enabled: false
+
+pgbouncer:
+  enabled: false
+
+triggerer:
+  enabled: false
+
+# Note: apiServer and dagProcessor are controlled by the chart version
+# The default Helm chart handles these automatically

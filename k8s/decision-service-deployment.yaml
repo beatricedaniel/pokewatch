@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decision-service
+  namespace: pokewatch
+  labels:
+    app: decision-service
+    tier: business-logic
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: decision-service
+  template:
+    metadata:
+      labels:
+        app: decision-service
+        tier: business-logic
+    spec:
+      containers:
+      - name: decision-service
+        image: pokewatch-decision:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+          name: http
+          protocol: TCP
+
+        # Health probes (increased delays and timeouts for reliability)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 35
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+
+        # Resource limits (lightweight service)
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
