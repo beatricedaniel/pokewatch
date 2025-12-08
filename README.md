@@ -104,6 +104,15 @@ These KPIs are more about the “platform health” than pure model performance:
 Together, these metrics make PokeWatch look and behave like a small but realistic MLOps production system, while keeping the actual implementation lightweight and focused.
 
 
+## Documentation
+
+All project documentation is organized in the [`docs/`](docs/) directory. See the [Documentation Index](docs/README.md) for a complete overview.
+
+**Key Documentation:**
+- **[Architecture](docs/architecture/MICROSERVICES_ARCHITECTURE.md)** - Microservices architecture overview
+- **[Deployment Guide](docs/deployment/MICROSERVICES_DEPLOYMENT.md)** - Complete deployment instructions
+- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - What was built and how
+
 ## MLOps Setup
 
 ### Data Versioning (DVC)
@@ -165,7 +174,7 @@ docker-compose run --rm training python -m pokewatch.models.train_baseline
 - **MLflow UI**: http://127.0.0.1:5001
 - **MinIO Console**: http://127.0.0.1:9001 (minioadmin/minioadmin)
 
-For detailed MLOps workflows, see [docs/technical-guides/MLOPS.md](docs/technical-guides/MLOPS.md).
+For detailed documentation, see [docs/README.md](docs/README.md).
 
 ### Pipeline Orchestration (ZenML)
 
@@ -201,11 +210,20 @@ bash scripts/schedule_pipeline.sh status
 bash scripts/schedule_pipeline.sh remove
 ```
 
-For detailed pipeline usage, see [docs/zenml_guide.md](docs/zenml_guide.md).
+For detailed documentation, see [docs/README.md](docs/README.md).
+
+### Microservices Architecture
+
+PokeWatch uses a microservices architecture with:
+- **3 always-running services**: API Gateway, Model Service, Decision Service
+- **Batch pipeline**: Orchestrated by Apache Airflow for data collection, preprocessing, and training
+- **Independent scaling**: Each service can scale independently based on load
+
+For detailed architecture information, see [docs/architecture/MICROSERVICES_ARCHITECTURE.md](docs/architecture/MICROSERVICES_ARCHITECTURE.md).
 
 ### Kubernetes Deployment
 
-PokeWatch can be deployed to Kubernetes for scalability and high availability.
+PokeWatch microservices can be deployed to Kubernetes for scalability and high availability.
 
 #### Quick Start
 ```bash
@@ -216,28 +234,36 @@ PokeWatch can be deployed to Kubernetes for scalability and high availability.
 #### Manual Deployment
 ```bash
 # Start Minikube
-minikube start --driver=docker --memory=4096 --cpus=2
+minikube start --driver=docker --memory=4096 --cpus=4
 
-# Build Docker image
-eval $(minikube docker-env)
-docker build -t pokewatch-api:latest -f docker/api.Dockerfile .
+# Build all microservice images
+./scripts/build_microservices.sh --minikube
 
-# Deploy to Kubernetes
+# Deploy all microservices
 kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/model-service-deployment.yaml
+kubectl apply -f k8s/model-service-service.yaml
+kubectl apply -f k8s/decision-service-deployment.yaml
+kubectl apply -f k8s/decision-service-service.yaml
 kubectl apply -f k8s/api-deployment.yaml
 kubectl apply -f k8s/api-service.yaml
 
 # Enable auto-scaling (optional)
-kubectl apply -f k8s/hpa.yaml
+kubectl apply -f k8s/model-service-hpa.yaml
 ```
+
+For complete deployment instructions, see [docs/deployment/MICROSERVICES_DEPLOYMENT.md](docs/deployment/MICROSERVICES_DEPLOYMENT.md).
 
 #### Access the API
 ```bash
-# Port-forward
-kubectl port-forward -n pokewatch svc/pokewatch-api 8000:8000
+# Get Minikube IP
+minikube ip
 
-# Or use Minikube service
-minikube service pokewatch-api -n pokewatch
+# Access API Gateway via NodePort (port 30080)
+curl http://$(minikube ip):30080/health
+
+# Or port-forward
+kubectl port-forward -n pokewatch svc/api-gateway 8000:8000
 ```
 
 #### Monitoring and Management
@@ -255,7 +281,10 @@ kubectl logs -l app=pokewatch-api -n pokewatch
 ./scripts/verify_k8s.sh
 ```
 
-For detailed Kubernetes usage, see [docs/kubernetes_guide.md](docs/kubernetes_guide.md).
+For detailed Kubernetes and microservices deployment, see:
+- [Microservices Deployment Guide](docs/deployment/MICROSERVICES_DEPLOYMENT.md)
+- [Microservices Architecture](docs/architecture/MICROSERVICES_ARCHITECTURE.md)
+- [Documentation Index](docs/README.md)
 
 
 ## Project structure
@@ -282,12 +311,17 @@ pokewatch/
 │   └── logging.yaml            # Python logging configuration
 ├── docs/
 │   ├── README.md               # Documentation index
-│   ├── getting-started/        # Quick start guides
+│   ├── IMPLEMENTATION_SUMMARY.md  # Implementation summary
 │   ├── architecture/           # Architecture & design docs
-│   ├── implementation-reports/ # Progress & completion reports
-│   ├── planning/              # Development plans & roadmaps
+│   │   └── MICROSERVICES_ARCHITECTURE.md
 │   ├── deployment/            # Deployment guides
+│   │   └── MICROSERVICES_DEPLOYMENT.md
+│   ├── planning/              # Development plans & roadmaps
+│   │   ├── MICROSERVICES_TRANSITION_PLAN.md
+│   │   ├── phase1.md
+│   │   └── phase2.md
 │   └── technical-guides/      # Technical documentation
+│       └── airflow_guide.md
 ├── src/
 │   └── pokewatch/
 │       ├── __init__.py
