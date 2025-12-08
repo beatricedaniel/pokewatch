@@ -37,8 +37,8 @@ dags:
     enabled: true
     # IMPORTANT: Replace with your GitHub repo URL
     repo: "https://github.com/beatricedaniel/pokewatch.git"
-    branch: "main"
-    subPath: "pokewatch/airflow/dags"
+    branch: "orch-deploy"
+    subPath: "airflow/dags"
     wait: 60
 
 # Webserver configuration
