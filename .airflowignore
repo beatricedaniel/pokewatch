@@ -1,22 +1,17 @@
-# Ignore everything except the airflow/dags directory
-services/
-src/
-tests/
-scripts/
-docker/
-k8s/
-docs/
-data/
-models/
-config/
-*.md
-*.txt
-*.toml
-*.yaml
-*.yml
-*.sh
+# Airflow should only scan airflow/dags/ directory
+# Ignore all other directories
+services
+src
+tests
+scripts
+docker
+k8s
+docs
+data
+models
+config
 .git
 .github
 __pycache__
 *.pyc
-.env*
+.env

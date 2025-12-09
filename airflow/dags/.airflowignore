@@ -1,4 +1,15 @@
+# Ignore parent directories (relative to /opt/airflow/dags/repo/airflow/dags)
+../../services
+../../src
+../../tests
+../../scripts
+../../docker
+../../k8s
+../../docs
+../../data
+../../models
+../../config
 .git
 .worktrees
 __pycache__
-.pyc
+*.pyc
