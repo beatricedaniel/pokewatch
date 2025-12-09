@@ -1,4 +1,22 @@
+# Ignore everything except the airflow/dags directory
+services/
+src/
+tests/
+scripts/
+docker/
+k8s/
+docs/
+data/
+models/
+config/
+*.md
+*.txt
+*.toml
+*.yaml
+*.yml
+*.sh
 .git
-.worktrees
+.github
 __pycache__
-.pyc
+*.pyc
+.env*
