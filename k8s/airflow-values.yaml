@@ -9,7 +9,7 @@ executor: "KubernetesExecutor"
 # Airflow configuration
 config:
   core:
-    dags_folder: "/opt/airflow/dags"
+    dags_folder: "/opt/airflow/dags/repo/airflow/dags"
     load_examples: "False"
   webserver:
     expose_config: "True"

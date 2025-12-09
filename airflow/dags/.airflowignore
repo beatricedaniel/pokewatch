@@ -1,4 +1,4 @@
 .git
 .worktrees
 __pycache__
-*.pyc
+.pyc
