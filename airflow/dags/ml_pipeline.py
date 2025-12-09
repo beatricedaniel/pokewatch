@@ -2,15 +2,14 @@
 PokeWatch ML Pipeline DAG
 
 Orchestrates the complete machine learning pipeline using KubernetesPodOperator:
-1. Data Collection: Fetch Pokemon card prices from API
-2. Preprocessing: Feature engineering and data transformation
-3. Model Training: Train baseline model and log to MLflow
-4. Model Reload: Trigger API to reload the new model
+1. Run Full Pipeline: Collect → Preprocess → Train (all in one pod to share data)
+2. Reload Model: Trigger API to reload the new model
 
 Schedule: Daily at 2 AM UTC
-Architecture: Same Docker image, different commands per task
+Architecture: Single pod for data pipeline, separate pod for API reload
 
-IMPORTANT: Replace DOCKERHUB_USER with your actual Docker Hub username
+Note: Data collection, preprocessing, and training run in a single pod because
+KubernetesPodOperator pods are ephemeral - data doesn't persist between pods.
 """
 from datetime import timedelta
 from airflow import DAG
@@ -35,7 +34,7 @@ env_from_secrets = [
     )
 ]
 
-# Single image for all tasks - replace DOCKERHUB_USER with your username
+# Single image for all tasks
 POKEWATCH_IMAGE = "beatricedaniel/pokewatch:latest"
 
 # Define DAG
@@ -50,72 +49,48 @@ with DAG(
     doc_md=__doc__,
 ) as dag:
 
-    # Task 1: Data Collection
-    collect_data = KubernetesPodOperator(
-        task_id='collect_data',
-        name='collect-data',
+    # Task 1: Full ML Pipeline (Collect → Preprocess → Train)
+    # Runs all steps in a single pod to share data between steps
+    run_pipeline = KubernetesPodOperator(
+        task_id='run_pipeline',
+        name='ml-pipeline',
         namespace='pokewatch',
         image=POKEWATCH_IMAGE,
-        cmds=['python', '-m', 'pokewatch.data.collectors.daily_price_collector'],
-        arguments=['--days', '7', '--format', 'parquet'],
+        cmds=['bash', '-c'],
+        arguments=[
+            '''
+            set -e
+            echo "=== Step 1: Data Collection ==="
+            python -m pokewatch.data.collectors.daily_price_collector --days 7 --format parquet
+
+            echo "=== Step 2: Feature Engineering ==="
+            python -m pokewatch.data.preprocessing.make_features
+
+            echo "=== Step 3: Model Training ==="
+            python -m pokewatch.models.train_baseline
+
+            echo "=== Pipeline Complete ==="
+            '''
+        ],
         env_from=env_from_secrets,
         is_delete_operator_pod=True,
         get_logs=True,
         log_events_on_failure=True,
+        startup_timeout_seconds=300,
         doc_md="""
-        ### Data Collection Task
+        ### Full ML Pipeline Task
 
-        Fetches Pokemon card prices from the Pokemon Price Tracker API.
-        - Runs in isolated pod with pokewatch image
-        - Collects 7 days of price history
-        - Saves raw data to Parquet format
-        - Pod is deleted after completion
+        Runs the complete ML pipeline in a single pod:
+        1. **Data Collection**: Fetches Pokemon card prices from API (7 days history)
+        2. **Preprocessing**: Feature engineering and data transformation
+        3. **Model Training**: Trains baseline model and logs to MLflow/DagsHub
+
+        All steps run in one pod to share data between stages.
+        Pod is deleted after completion.
         """,
     )
 
-    # Task 2: Preprocessing
-    preprocess_data = KubernetesPodOperator(
-        task_id='preprocess_data',
-        name='preprocess-data',
-        namespace='pokewatch',
-        image=POKEWATCH_IMAGE,
-        cmds=['python', '-m', 'pokewatch.data.preprocessing.make_features'],
-        env_from=env_from_secrets,
-        is_delete_operator_pod=True,
-        get_logs=True,
-        log_events_on_failure=True,
-        doc_md="""
-        ### Preprocessing Task
-
-        Performs feature engineering on raw price data.
-        - Reads data from previous task
-        - Applies feature transformations
-        - Outputs processed features
-        """,
-    )
-
-    # Task 3: Model Training
-    train_model = KubernetesPodOperator(
-        task_id='train_model',
-        name='train-model',
-        namespace='pokewatch',
-        image=POKEWATCH_IMAGE,
-        cmds=['python', '-m', 'pokewatch.models.train_baseline'],
-        env_from=env_from_secrets,
-        is_delete_operator_pod=True,
-        get_logs=True,
-        log_events_on_failure=True,
-        doc_md="""
-        ### Model Training Task
-
-        Trains the baseline fair price prediction model.
-        - Trains baseline model (moving average)
-        - Logs experiment to MLflow on DagsHub
-        - Registers model in MLflow registry
-        """,
-    )
-
-    # Task 4: Reload Model in API
+    # Task 2: Reload Model in API
     reload_model = KubernetesPodOperator(
         task_id='reload_model',
         name='reload-model',
@@ -142,5 +117,5 @@ with DAG(
         """,
     )
 
-    # Define task dependencies (sequential pipeline)
-    collect_data >> preprocess_data >> train_model >> reload_model
+    # Define task dependencies
+    run_pipeline >> reload_model
