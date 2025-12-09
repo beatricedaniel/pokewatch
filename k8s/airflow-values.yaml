@@ -3,8 +3,9 @@
 #
 # IMPORTANT: Update the git repo URL in dags.gitSync section before deploying
 
-# Use KubernetesExecutor - creates pods dynamically for each task
-executor: "KubernetesExecutor"
+# Use LocalExecutor - KubernetesPodOperator will create pods with custom images
+# NOTE: Don't use KubernetesExecutor with KubernetesPodOperator - they conflict
+executor: "LocalExecutor"
 
 # Airflow configuration
 config:
@@ -13,12 +14,6 @@ config:
     load_examples: "False"
   webserver:
     expose_config: "True"
-  kubernetes_executor:
-    # Pipeline pods run in pokewatch namespace (where secrets exist)
-    namespace: "pokewatch"
-    # Clean up pods after task completion
-    delete_worker_pods: "True"
-    delete_worker_pods_on_failure: "False"
 
 # PostgreSQL database
 postgresql:
