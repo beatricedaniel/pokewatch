@@ -244,6 +244,38 @@ def list_cards(
     return {"cards": card_ids, "count": len(card_ids)}
 
 
+@app.post("/reload")
+def reload_model():
+    """
+    Reload the baseline model from disk/MLflow.
+
+    This endpoint is called by Airflow after training a new model
+    to reload it without restarting the API.
+
+    Returns:
+        Status message with model information
+    """
+    try:
+        logger.info("Reloading baseline model...")
+        model = load_baseline_model()
+        dependencies.set_model(model)
+
+        cards_count = len(model.get_all_card_ids())
+        logger.info(f"Model reloaded successfully with {cards_count} cards")
+
+        return {
+            "status": "ok",
+            "message": "Model reloaded successfully",
+            "cards_count": cards_count,
+        }
+    except Exception as e:
+        logger.error(f"Failed to reload model: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reload model: {str(e)}",
+        )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """Global exception handler for unhandled errors."""

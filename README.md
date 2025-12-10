@@ -212,12 +212,41 @@ bash scripts/schedule_pipeline.sh remove
 
 For detailed documentation, see [docs/README.md](docs/README.md).
 
-### Microservices Architecture
+### Airflow Pipeline Orchestration
 
-PokeWatch uses a microservices architecture with:
-- **3 always-running services**: API Gateway, Model Service, Decision Service
-- **Batch pipeline**: Orchestrated by Apache Airflow for data collection, preprocessing, and training
-- **Independent scaling**: Each service can scale independently based on load
+PokeWatch uses Apache Airflow for ML pipeline orchestration on Kubernetes:
+
+#### Architecture
+- **Airflow Deployment**: Helm chart on K3s (remote VM) with LocalExecutor
+- **Task Execution**: KubernetesPodOperator creates pods with custom Docker images
+- **DAG Sync**: Git-sync automatically pulls DAGs from GitHub every 60 seconds
+- **Container Registry**: Docker Hub (`beatricedaniel/pokewatch:latest`)
+
+#### ML Pipeline DAG (`pokewatch_ml_pipeline`)
+The pipeline runs daily at 2 AM UTC with two tasks:
+1. **run_pipeline**: Data collection → Feature engineering → Model training (single pod)
+2. **reload_model**: Triggers API `/reload` endpoint to load new model
+
+#### Quick Start (VM Deployment)
+```bash
+# 1. Build and push Docker image (local machine)
+docker build --platform linux/amd64 -t beatricedaniel/pokewatch:latest -f docker/api.Dockerfile .
+docker push beatricedaniel/pokewatch:latest
+
+# 2. Deploy Airflow (on VM)
+helm repo add apache-airflow https://airflow.apache.org
+helm install airflow apache-airflow/airflow -f k8s/airflow-values.yaml -n airflow
+
+# 3. Create secrets (on VM)
+kubectl create secret generic pokewatch-secrets -n pokewatch \
+  --from-literal=POKEMON_PRICE_API_KEY="your_key" \
+  --from-literal=MLFLOW_TRACKING_URI="https://dagshub.com/user/repo.mlflow" \
+  --from-literal=MLFLOW_TRACKING_USERNAME="user" \
+  --from-literal=MLFLOW_TRACKING_PASSWORD="token"
+
+# 4. Access Airflow UI
+# http://VM-IP:30081 (default: admin/admin)
+```
 
 For detailed architecture information, see [docs/architecture/MICROSERVICES_ARCHITECTURE.md](docs/architecture/MICROSERVICES_ARCHITECTURE.md).
 
@@ -374,9 +403,15 @@ pokewatch/
 │   ├── dev.Dockerfile          # Reproducible dev environment (Phase 1 optional)
 │   └── docker-compose.dev.yml  # Local API launch + hot-reload
 ├── k8s/
-│   ├── api-deployment.yaml     # Phase 3
-│   ├── api-service.yaml        # Phase 3
-│   └── cron-collector.yaml     # Phase 3
+│   ├── namespace.yaml          # Kubernetes namespace
+│   ├── api-deployment.yaml     # API deployment with health probes
+│   ├── api-service.yaml        # NodePort service (30080)
+│   ├── hpa.yaml                # Horizontal Pod Autoscaler
+│   └── airflow-values.yaml     # Helm values for Airflow
+├── airflow/
+│   └── dags/
+│       ├── ml_pipeline.py      # ML pipeline DAG
+│       └── .airflowignore      # Exclude non-DAG files
 └── .github/
     └── workflows/
         └── ci.yml              # CI (Phase 3)
