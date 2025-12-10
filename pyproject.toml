@@ -30,6 +30,8 @@ dependencies = [
     "dvc[s3]",
     "bentoml>=1.2.0",
     "zenml[server]>=0.55.0",
+    "prometheus-client>=0.19.0",
+    "evidently>=0.4.0",
 ]
 
 [project.optional-dependencies]

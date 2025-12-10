@@ -6,14 +6,16 @@ Provides endpoints for fair price prediction and trading signals.
 
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from pokewatch.api import dependencies
 from pokewatch.api.auth import get_api_key_auth
@@ -23,6 +25,14 @@ from pokewatch.api.schemas import FairPriceRequest, FairPriceResponse, HealthRes
 from pokewatch.config import get_settings
 from pokewatch.core.decision_rules import DecisionConfig, compute_signal
 from pokewatch.models.baseline import BaselineFairPriceModel, load_baseline_model
+from pokewatch.monitoring.metrics import (
+    get_metrics,
+    record_request,
+    record_prediction,
+    record_error,
+    record_model_reload,
+    update_model_info,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +98,12 @@ async def lifespan(app: FastAPI):
         )
         dependencies.set_decision_config(decision_cfg)
 
+        # Update Prometheus metrics with model info
+        update_model_info(
+            version="baseline-v1",
+            loaded_at=datetime.now().isoformat(),
+        )
+
         logger.info(
             f"✓ Model loaded with {len(model.get_all_card_ids())} cards. "
             f"Decision thresholds: BUY <= -{decision_cfg.buy_threshold_pct*100}%, "
@@ -142,6 +158,39 @@ setup_middleware(
 # Initialize authentication and rate limiting
 api_key_auth = get_api_key_auth()
 rate_limiter = get_rate_limiter(use_redis=bool(os.getenv("REDIS_URL")))
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Middleware to record request metrics for Prometheus."""
+    # Skip metrics endpoint to avoid recursion
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+
+    # Record metrics
+    record_request(
+        method=request.method,
+        endpoint=request.url.path,
+        status_code=response.status_code,
+        duration=duration,
+    )
+
+    return response
+
+
+@app.get("/metrics")
+def metrics():
+    """
+    Prometheus metrics endpoint.
+
+    Returns:
+        Prometheus-formatted metrics
+    """
+    return Response(content=get_metrics(), media_type="text/plain")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -213,10 +262,14 @@ def fair_price(
     try:
         signal, deviation_pct = compute_signal(market_price, fair_price, decision_cfg)
     except ValueError as e:
+        record_error("prediction")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error computing signal: {str(e)}",
         )
+
+    # Record prediction metric
+    record_prediction(signal)
 
     return FairPriceResponse(
         card_id=payload.card_id,
@@ -263,6 +316,13 @@ def reload_model():
         cards_count = len(model.get_all_card_ids())
         logger.info(f"Model reloaded successfully with {cards_count} cards")
 
+        # Record successful reload metric
+        record_model_reload(success=True)
+        update_model_info(
+            version="baseline-v1",
+            loaded_at=datetime.now().isoformat(),
+        )
+
         return {
             "status": "ok",
             "message": "Model reloaded successfully",
@@ -270,6 +330,8 @@ def reload_model():
         }
     except Exception as e:
         logger.error(f"Failed to reload model: {e}", exc_info=True)
+        record_model_reload(success=False)
+        record_error("model_reload")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reload model: {str(e)}",

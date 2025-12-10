@@ -48,3 +48,20 @@ pipeline:
   orchestrator: "zenml"  # or "simple"
   retry_on_failure: true
   max_retries: 3
+
+# Monitoring settings (Phase 4)
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+  grafana:
+    enabled: true
+    port: 3000
+
+# Drift detection settings (Phase 4)
+drift:
+  enabled: true
+  threshold: 0.1  # Drift score threshold (0.0-1.0)
+  report_dir: "data/drift_reports"
+  reference_window_days: 30  # Days of historical data for reference
+  current_window_days: 7     # Days of recent data to compare
