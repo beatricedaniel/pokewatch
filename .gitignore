@@ -48,3 +48,6 @@ build/
 
 # Docker
 .dockerignore
+
+# Kubernetes secrets (live credentials)
+k8s/ml-secrets-live.yaml

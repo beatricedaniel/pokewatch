@@ -361,10 +361,9 @@ kubectl logs -l app=pokewatch-api -n pokewatch
 ./scripts/verify_k8s.sh
 ```
 
-For detailed Kubernetes and microservices deployment, see:
-- [Microservices Deployment Guide](docs/deployment/MICROSERVICES_DEPLOYMENT.md)
-- [Microservices Architecture](docs/architecture/MICROSERVICES_ARCHITECTURE.md)
-- [Documentation Index](docs/README.md)
+For detailed Kubernetes deployment, see:
+- [Phase 4 VM Deployment Guide](docs/deployment/PHASE4_VM_DEPLOYMENT.md)
+- [Monitoring Guide](docs/monitoring/MONITORING_GUIDE.md)
 
 
 ## Project structure
@@ -390,23 +389,13 @@ pokewatch/
 │   ├── settings.yaml           # Global config (API URL, paths, thresholds, etc.)
 │   └── logging.yaml            # Python logging configuration
 ├── docs/
-│   ├── README.md               # Documentation index
-│   ├── IMPLEMENTATION_SUMMARY.md  # Implementation summary
-│   ├── architecture/           # Architecture & design docs
-│   │   └── MICROSERVICES_ARCHITECTURE.md
 │   ├── deployment/            # Deployment guides
-│   │   ├── MICROSERVICES_DEPLOYMENT.md
 │   │   └── PHASE4_VM_DEPLOYMENT.md  # Phase 4 monitoring deployment
 │   ├── monitoring/            # Monitoring documentation (Phase 4)
 │   │   ├── MONITORING_GUIDE.md      # Prometheus/Grafana setup
 │   │   └── DRIFT_DETECTION.md       # Evidently drift detection
-│   ├── planning/              # Development plans & roadmaps
-│   │   ├── MICROSERVICES_TRANSITION_PLAN.md
-│   │   ├── phase1.md
-│   │   ├── phase2.md
-│   │   └── phase4.md               # Phase 4 requirements
-│   └── technical-guides/      # Technical documentation
-│       └── airflow_guide.md
+│   └── planning/              # Development plans & roadmaps
+│       └── phase4.md               # Phase 4 requirements
 ├── src/
 │   └── pokewatch/
 │       ├── __init__.py
@@ -457,14 +446,16 @@ pokewatch/
 │       └── test_api_baseline.py           # Phase 1 (simple happy path)
 ├── docker/
 │   ├── api.Dockerfile          # FastAPI container (Phase 1)
-│   ├── dev.Dockerfile          # Reproducible dev environment (Phase 1 optional)
-│   └── docker-compose.dev.yml  # Local API launch + hot-reload
+│   └── bento.Dockerfile        # BentoML container (experimental)
 ├── k8s/
 │   ├── namespace.yaml          # Kubernetes namespace
 │   ├── api-deployment.yaml     # API deployment with health probes
 │   ├── api-service.yaml        # NodePort service (30080)
 │   ├── hpa.yaml                # Horizontal Pod Autoscaler
+│   ├── ml-secrets.yaml         # Template for ML secrets
 │   ├── airflow-values.yaml     # Helm values for Airflow
+│   ├── airflow-pv.yaml         # Persistent volume for Airflow
+│   ├── airflow-rbac.yaml       # RBAC for Airflow
 │   ├── prometheus-configmap.yaml    # Prometheus scrape config (Phase 4)
 │   ├── prometheus-deployment.yaml   # Prometheus server (Phase 4)
 │   ├── grafana-configmap.yaml       # Grafana datasource + dashboard (Phase 4)
