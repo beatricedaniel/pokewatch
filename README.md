@@ -107,16 +107,6 @@ These KPIs are more about the "platform health" than pure model performance:
 Together, these metrics make PokeWatch look and behave like a small but realistic MLOps production system, while keeping the actual implementation lightweight and focused.
 
 
-## Documentation
-
-All project documentation is organized in the [`docs/`](docs/) directory.
-
-**Key Documentation:**
-- **[Phase 4 VM Deployment](docs/deployment/PHASE4_VM_DEPLOYMENT.md)** - Monitoring stack deployment
-- **[Monitoring Guide](docs/monitoring/MONITORING_GUIDE.md)** - Prometheus/Grafana setup
-- **[Drift Detection](docs/monitoring/DRIFT_DETECTION.md)** - Evidently drift detection
-- **[Phase 4 Planning](docs/planning/phase4.md)** - Phase 4 requirements and planning
-
 ## MLOps Setup
 
 ### Data Versioning (DVC)
