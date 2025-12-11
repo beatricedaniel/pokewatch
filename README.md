@@ -4,14 +4,14 @@
 
 **PokeWatch: Pokémon Card Price Drift & Alerting Platform**
 
-PokeWatch is a small MLOps-driven platform that helps collectors and small investors monitor a fixed universe of 30 Pokémon cards and spot potential BUY/SELL opportunities.
+PokeWatch is a small MLOps-driven platform that helps collectors and small investors monitor a fixed universe of ~40 Pokémon cards and spot potential BUY/SELL opportunities.
 
 The core idea is to estimate a **“fair value”** for each card (based on recent price history and simple models) and compare it to the current market price. When the market price deviates too much from the estimated fair value, PokeWatch raises a BUY, SELL, or HOLD suggestion.
 
 The project is designed as an end-to-end MLOps example:
 - Real price data from public Pokémon pricing APIs.
 - Simple time-series/tabular models for fair value.
-- Microservices for data collection and inference.
+- FastAPI service for inference and data collection.
 - Experiment tracking, data/model versioning, orchestration, deployment, and monitoring.
 
 
@@ -109,15 +109,13 @@ Together, these metrics make PokeWatch look and behave like a small but realisti
 
 ## Documentation
 
-All project documentation is organized in the [`docs/`](docs/) directory. See the [Documentation Index](docs/README.md) for a complete overview.
+All project documentation is organized in the [`docs/`](docs/) directory.
 
 **Key Documentation:**
-- **[Architecture](docs/architecture/MICROSERVICES_ARCHITECTURE.md)** - Microservices architecture overview
-- **[Deployment Guide](docs/deployment/MICROSERVICES_DEPLOYMENT.md)** - Complete deployment instructions
 - **[Phase 4 VM Deployment](docs/deployment/PHASE4_VM_DEPLOYMENT.md)** - Monitoring stack deployment
 - **[Monitoring Guide](docs/monitoring/MONITORING_GUIDE.md)** - Prometheus/Grafana setup
 - **[Drift Detection](docs/monitoring/DRIFT_DETECTION.md)** - Evidently drift detection
-- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - What was built and how
+- **[Phase 4 Planning](docs/planning/phase4.md)** - Phase 4 requirements and planning
 
 ## MLOps Setup
 
@@ -159,12 +157,26 @@ git push
 
 ### Experiment Tracking (MLflow)
 
-MLflow runs in Docker with MinIO for artifact storage.
+PokeWatch uses MLflow with DagsHub for experiment tracking and model registry. For local development, an optional MinIO-based MLflow stack is available via Docker Compose.
 
-#### Start Services
+#### Production (DagsHub)
+MLflow tracking is configured to use DagsHub by default:
+- **Tracking URI**: `https://dagshub.com/beatricedaniel/pokewatch.mlflow`
+- Configure credentials via environment variables:
+  ```bash
+  export MLFLOW_TRACKING_URI="https://dagshub.com/beatricedaniel/pokewatch.mlflow"
+  export MLFLOW_TRACKING_USERNAME="beatricedaniel"
+  export MLFLOW_TRACKING_PASSWORD="your_dagshub_token"
+  ```
+
+#### Local Development (Optional)
+For local MLflow with MinIO:
 ```bash
 # Start MLflow and MinIO
-docker-compose up -d minio mlflow
+docker-compose --profile mlflow up -d
+
+# MLflow UI: http://127.0.0.1:5001
+# MinIO Console: http://127.0.0.1:9001 (minioadmin/minioadmin)
 ```
 
 #### Run Training
@@ -173,50 +185,8 @@ docker-compose up -d minio mlflow
 ./scripts/train_baseline_docker.sh
 
 # Or directly
-docker-compose run --rm training python -m pokewatch.models.train_baseline
+docker-compose --profile training run --rm training python -m pokewatch.models.train_baseline
 ```
-
-#### View Results
-- **MLflow UI**: http://127.0.0.1:5001
-- **MinIO Console**: http://127.0.0.1:9001 (minioadmin/minioadmin)
-
-For detailed documentation, see [docs/README.md](docs/README.md).
-
-### Pipeline Orchestration (ZenML)
-
-PokeWatch uses ZenML for ML pipeline orchestration with experiment tracking.
-
-#### Setup ZenML (First Time)
-```bash
-# Run setup script
-bash scripts/setup_zenml.sh
-
-# Verify installation
-zenml stack list
-```
-
-#### Run Pipeline
-```bash
-# Run complete ML pipeline
-python -m pipelines.ml_pipeline
-
-# View pipeline runs
-zenml up
-```
-
-#### Schedule Pipeline
-```bash
-# Install daily cron job (3:00 AM)
-bash scripts/schedule_pipeline.sh install
-
-# Check schedule status
-bash scripts/schedule_pipeline.sh status
-
-# Remove schedule
-bash scripts/schedule_pipeline.sh remove
-```
-
-For detailed documentation, see [docs/README.md](docs/README.md).
 
 ### Airflow Pipeline Orchestration
 
@@ -246,15 +216,51 @@ helm install airflow apache-airflow/airflow -f k8s/airflow-values.yaml -n airflo
 # 3. Create secrets (on VM)
 kubectl create secret generic pokewatch-secrets -n pokewatch \
   --from-literal=POKEMON_PRICE_API_KEY="your_key" \
-  --from-literal=MLFLOW_TRACKING_URI="https://dagshub.com/user/repo.mlflow" \
-  --from-literal=MLFLOW_TRACKING_USERNAME="user" \
+  --from-literal=MLFLOW_TRACKING_URI="https://dagshub.com/beatricedaniel/pokewatch.mlflow" \
+  --from-literal=MLFLOW_TRACKING_USERNAME="beatricedaniel" \
   --from-literal=MLFLOW_TRACKING_PASSWORD="token"
 
 # 4. Access Airflow UI
 # http://VM-IP:30081 (default: admin/admin)
 ```
 
-For detailed architecture information, see [docs/architecture/MICROSERVICES_ARCHITECTURE.md](docs/architecture/MICROSERVICES_ARCHITECTURE.md).
+### CI/CD (GitHub Actions)
+
+PokeWatch uses GitHub Actions for continuous integration and deployment with 5 workflows:
+
+#### Workflows
+
+1. **Test** (`.github/workflows/test.yml`)
+   - Runs on push/PR to `main` and `develop` branches
+   - Unit and integration tests with pytest
+   - Code coverage reporting (Codecov)
+   - Coverage threshold: 70%
+
+2. **Quality** (`.github/workflows/quality.yml`)
+   - Code quality checks: ruff linting, black formatting, mypy type checking
+   - Import order validation
+   - Security scanning with bandit
+
+3. **Docker Build** (`.github/workflows/docker-build.yml`)
+   - Builds API and BentoML Docker images on push to `main` or tags
+   - Multi-platform builds (linux/amd64, linux/arm64)
+   - Pushes to GitHub Container Registry (ghcr.io)
+   - Image testing after build
+
+4. **Bento Build** (`.github/workflows/bento-build.yml`)
+   - BentoML-specific build and validation
+
+5. **Release** (`.github/workflows/release.yml`)
+   - Triggered on version tags (`v*.*.*`)
+   - Full test suite execution
+   - Builds and pushes versioned Docker images
+   - Creates GitHub releases with changelog
+
+#### Container Registry
+
+Docker images are published to GitHub Container Registry:
+- **API**: `ghcr.io/beatricedaniel/pokewatch/pokewatch-api:latest`
+- **Bento**: `ghcr.io/beatricedaniel/pokewatch/pokewatch-bento:latest`
 
 ### Monitoring (Prometheus + Grafana)
 
@@ -303,7 +309,7 @@ For detailed usage, see [docs/monitoring/DRIFT_DETECTION.md](docs/monitoring/DRI
 
 ### Kubernetes Deployment
 
-PokeWatch microservices can be deployed to Kubernetes for scalability and high availability.
+PokeWatch API can be deployed to Kubernetes (Minikube for local development, K3s for remote VM) for scalability and high availability.
 
 #### Quick Start
 ```bash
@@ -314,36 +320,32 @@ PokeWatch microservices can be deployed to Kubernetes for scalability and high a
 #### Manual Deployment
 ```bash
 # Start Minikube
-minikube start --driver=docker --memory=4096 --cpus=4
+minikube start --driver=docker --memory=4096 --cpus=2
+eval $(minikube docker-env)
 
-# Build all microservice images
-./scripts/build_microservices.sh --minikube
+# Build Docker image
+docker build -t pokewatch-api:latest -f docker/api.Dockerfile .
 
-# Deploy all microservices
+# Deploy API service
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/model-service-deployment.yaml
-kubectl apply -f k8s/model-service-service.yaml
-kubectl apply -f k8s/decision-service-deployment.yaml
-kubectl apply -f k8s/decision-service-service.yaml
 kubectl apply -f k8s/api-deployment.yaml
 kubectl apply -f k8s/api-service.yaml
 
 # Enable auto-scaling (optional)
-kubectl apply -f k8s/model-service-hpa.yaml
+kubectl apply -f k8s/hpa.yaml
 ```
-
-For complete deployment instructions, see [docs/deployment/MICROSERVICES_DEPLOYMENT.md](docs/deployment/MICROSERVICES_DEPLOYMENT.md).
 
 #### Access the API
 ```bash
 # Get Minikube IP
 minikube ip
 
-# Access API Gateway via NodePort (port 30080)
+# Access API via NodePort (port 30080)
 curl http://$(minikube ip):30080/health
 
 # Or port-forward
-kubectl port-forward -n pokewatch svc/api-gateway 8000:8000
+kubectl port-forward -n pokewatch svc/pokewatch-api 8000:8000
+curl http://localhost:8000/health
 ```
 
 #### Monitoring and Management
@@ -466,5 +468,9 @@ pokewatch/
 │       └── .airflowignore      # Exclude non-DAG files
 └── .github/
     └── workflows/
-        └── ci.yml              # CI (Phase 3)
+        ├── test.yml            # Unit and integration tests
+        ├── quality.yml         # Code quality checks (ruff, black, mypy, bandit)
+        ├── docker-build.yml    # Docker image builds (API and Bento)
+        ├── bento-build.yml     # BentoML-specific builds
+        └── release.yml         # Release automation
 ```
