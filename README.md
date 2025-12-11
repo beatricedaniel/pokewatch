@@ -85,21 +85,24 @@ These KPIs are computed offline on historical data (backtesting).
 
 ### 4. Operational & Monitoring Metrics (for MLOps)
 
-These KPIs are more about the “platform health” than pure model performance:
+These KPIs are more about the "platform health" than pure model performance:
 
 - **API Latency (p95)**
   95th percentile response time for the `/fair_price` endpoint.
+  *Monitored via Prometheus + Grafana dashboard.*
 
 - **API Error Rate**
   Percentage of failed requests (5xx) over time.
+  *Monitored via Prometheus + Grafana dashboard.*
 
 - **Model Version Adoption**
   Which model version is currently serving traffic, and how often it is updated.
+  *Tracked via MLflow on DagsHub.*
 
-- **Drift Indicators** (later phases)
+- **Drift Indicators** (Phase 4 - Implemented)
   - Data drift on input features (price distributions, volatility, etc.).
   - Prediction drift (distribution of fair values and deviations over time).
-  - Number of drift events that trigger retraining per month.
+  - HTML reports generated via Evidently.
 
 Together, these metrics make PokeWatch look and behave like a small but realistic MLOps production system, while keeping the actual implementation lightweight and focused.
 
@@ -111,6 +114,9 @@ All project documentation is organized in the [`docs/`](docs/) directory. See th
 **Key Documentation:**
 - **[Architecture](docs/architecture/MICROSERVICES_ARCHITECTURE.md)** - Microservices architecture overview
 - **[Deployment Guide](docs/deployment/MICROSERVICES_DEPLOYMENT.md)** - Complete deployment instructions
+- **[Phase 4 VM Deployment](docs/deployment/PHASE4_VM_DEPLOYMENT.md)** - Monitoring stack deployment
+- **[Monitoring Guide](docs/monitoring/MONITORING_GUIDE.md)** - Prometheus/Grafana setup
+- **[Drift Detection](docs/monitoring/DRIFT_DETECTION.md)** - Evidently drift detection
 - **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - What was built and how
 
 ## MLOps Setup
@@ -250,6 +256,51 @@ kubectl create secret generic pokewatch-secrets -n pokewatch \
 
 For detailed architecture information, see [docs/architecture/MICROSERVICES_ARCHITECTURE.md](docs/architecture/MICROSERVICES_ARCHITECTURE.md).
 
+### Monitoring (Prometheus + Grafana)
+
+PokeWatch uses Prometheus for metrics collection and Grafana for visualization.
+
+#### Metrics Exposed
+
+The API exposes Prometheus metrics at `/metrics`:
+- `pokewatch_requests_total` - Request count by endpoint, method, status
+- `pokewatch_request_latency_seconds` - Request latency histogram
+- `pokewatch_predictions_total` - Predictions by signal (BUY/SELL/HOLD)
+- `pokewatch_errors_total` - Errors by type
+- `pokewatch_model_reloads_total` - Model reload events
+- `pokewatch_model_info` - Current model version
+
+#### Deploy Monitoring Stack
+```bash
+# On VM
+kubectl apply -f k8s/prometheus-configmap.yaml
+kubectl apply -f k8s/prometheus-deployment.yaml
+kubectl apply -f k8s/grafana-configmap.yaml
+kubectl apply -f k8s/grafana-deployment.yaml
+```
+
+#### Access Services
+- **Prometheus**: `http://VM-IP:30090`
+- **Grafana**: `http://VM-IP:30300` (admin/admin)
+- **Dashboard**: Dashboards → Browse → PokeWatch Dashboard
+
+For detailed setup, see [docs/monitoring/MONITORING_GUIDE.md](docs/monitoring/MONITORING_GUIDE.md).
+
+### Drift Detection (Evidently)
+
+PokeWatch uses Evidently for data and prediction drift detection.
+
+#### Run Drift Detection
+```bash
+python -m pokewatch.monitoring.drift_detector \
+    data/processed/reference.parquet \
+    data/processed/current.parquet
+```
+
+Reports are saved to `data/drift_reports/` as HTML files.
+
+For detailed usage, see [docs/monitoring/DRIFT_DETECTION.md](docs/monitoring/DRIFT_DETECTION.md).
+
 ### Kubernetes Deployment
 
 PokeWatch microservices can be deployed to Kubernetes for scalability and high availability.
@@ -344,11 +395,16 @@ pokewatch/
 │   ├── architecture/           # Architecture & design docs
 │   │   └── MICROSERVICES_ARCHITECTURE.md
 │   ├── deployment/            # Deployment guides
-│   │   └── MICROSERVICES_DEPLOYMENT.md
+│   │   ├── MICROSERVICES_DEPLOYMENT.md
+│   │   └── PHASE4_VM_DEPLOYMENT.md  # Phase 4 monitoring deployment
+│   ├── monitoring/            # Monitoring documentation (Phase 4)
+│   │   ├── MONITORING_GUIDE.md      # Prometheus/Grafana setup
+│   │   └── DRIFT_DETECTION.md       # Evidently drift detection
 │   ├── planning/              # Development plans & roadmaps
 │   │   ├── MICROSERVICES_TRANSITION_PLAN.md
 │   │   ├── phase1.md
-│   │   └── phase2.md
+│   │   ├── phase2.md
+│   │   └── phase4.md               # Phase 4 requirements
 │   └── technical-guides/      # Technical documentation
 │       └── airflow_guide.md
 ├── src/
@@ -380,8 +436,9 @@ pokewatch/
 │       │   ├── schemas.py               # Pydantic request/response models (Phase 1)
 │       │   └── dependencies.py          # Dependencies (config, model, etc.)
 │       ├── monitoring/
-│       │   ├── __init__.py              # Placeholder (Phase 4)
-│       │   └── metrics.py               # Prometheus metrics exposure (Phase 3–4)
+│       │   ├── __init__.py              # Module exports
+│       │   ├── metrics.py               # Prometheus metrics exposure (Phase 4)
+│       │   └── drift_detector.py        # Evidently drift detection (Phase 4)
 │       ├── orchestration/
 │       │   ├── __init__.py              # Placeholder (Phase 3)
 │       │   └── flows.py                 # Prefect/Airflow
@@ -407,7 +464,11 @@ pokewatch/
 │   ├── api-deployment.yaml     # API deployment with health probes
 │   ├── api-service.yaml        # NodePort service (30080)
 │   ├── hpa.yaml                # Horizontal Pod Autoscaler
-│   └── airflow-values.yaml     # Helm values for Airflow
+│   ├── airflow-values.yaml     # Helm values for Airflow
+│   ├── prometheus-configmap.yaml    # Prometheus scrape config (Phase 4)
+│   ├── prometheus-deployment.yaml   # Prometheus server (Phase 4)
+│   ├── grafana-configmap.yaml       # Grafana datasource + dashboard (Phase 4)
+│   └── grafana-deployment.yaml      # Grafana server (Phase 4)
 ├── airflow/
 │   └── dags/
 │       ├── ml_pipeline.py      # ML pipeline DAG
